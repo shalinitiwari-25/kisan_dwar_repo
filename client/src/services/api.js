@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://kisan-dwar-backend.onrender.com/',
   timeout: 8000,
 });
 
