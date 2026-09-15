@@ -155,7 +155,7 @@ function PaymentStatus() {
           <div className="helpline-card">
             <div className="helpline-icon">📞</div>
             <div>
-              <div className="helpline-label">Payment Delayed? Contact Haryana Food Dept</div>
+              <div className="helpline-label">Payment Delayed? Contact Food Dept Helpline</div>
               <div className="helpline-number">1800-180-2087</div>
               <div style={{ fontSize: '11px', color: 'var(--orange-500)', marginTop: '2px', fontWeight: 600 }}>
                 Toll Free • 24×7 Available

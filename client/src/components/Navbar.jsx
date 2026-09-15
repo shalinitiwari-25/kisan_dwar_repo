@@ -35,7 +35,7 @@ function Navbar({ role, setRole, lang, setLang }) {
             <span className="brand-kisan">Kisan</span>
             <span className="brand-dwar"> Dwar</span>
           </div>
-          <div className="brand-tagline">Smart Mandi Portal • Haryana</div>
+          <div className="brand-tagline">Smart Mandi Portal</div>
         </div>
       </div>
 

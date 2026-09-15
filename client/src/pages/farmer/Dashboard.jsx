@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import StatCard from '../../components/StatCard';
 import { getCentre, getBookingsByCentre } from '../../services/api';
+import farmerHero from '../../assets/farmer-hero.png';
 
 const CENTRE_MAP = {
   'C001': 'Karnal Mandi',
@@ -55,13 +56,15 @@ function Dashboard() {
 
   return (
     <div>
-      {/* Page Header */}
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Hero */}
+      <div className="dashboard-hero">
+        <img src={farmerHero} alt="Farmer in the field" className="dashboard-hero-img" />
+        <div className="dashboard-hero-overlay"></div>
+        <div className="dashboard-hero-content">
           <div>
-            <div className="page-title">👨‍🌾 Namaste, Ramesh Kumar!</div>
-            <div className="page-subtitle">
-              📍 {centre ? centre.name : 'Loading…'}, Haryana
+            <div className="dashboard-hero-title">Namaste, Ramesh Kumar!</div>
+            <div className="dashboard-hero-subtitle">
+              {centre ? centre.name : 'Loading…'}
             </div>
           </div>
           <div>
@@ -81,7 +84,7 @@ function Dashboard() {
 
       {/* AI Departure Guidance */}
       <div className="ai-card">
-        <div className="ai-card-label">🤖 AI Departure Guidance</div>
+        <div className="ai-card-label">AI Departure Guidance</div>
         {lastBooking ? (
           <>
             <div className="ai-card-time">{departLabel}</div>

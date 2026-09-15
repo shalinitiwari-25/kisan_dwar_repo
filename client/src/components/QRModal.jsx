@@ -1,5 +1,19 @@
+import { QRCodeSVG } from 'qrcode.react';
+
 function QRModal({ booking, onClose }) {
   if (!booking) return null;
+
+  // Encode the key ticket details into the QR code so gate staff can scan
+  // it and instantly see the booking, without needing network access.
+  const qrValue = JSON.stringify({
+    tokenId: booking.tokenId,
+    bookingId: booking.id,
+    centreId: booking.centreId,
+    centre: booking.centre,
+    crop: booking.crop,
+    quantity: booking.quantity,
+    slot: booking.slot,
+  });
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -14,7 +28,11 @@ function QRModal({ booking, onClose }) {
           </div>
           <div className="token-id">{booking.tokenId || 'KD-10294'}</div>
 
-          <div className="qr-placeholder">📱</div>
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
+            <div style={{ background: '#fff', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
+              <QRCodeSVG value={qrValue} size={150} level="M" />
+            </div>
+          </div>
           <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
             Show this QR code at the Mandi gate
           </div>

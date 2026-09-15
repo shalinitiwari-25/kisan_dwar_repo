@@ -2,13 +2,28 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const Centre = require('./models/Centre');
 const centreRoutes = require('./routes/centreRoutes');
 const app = express();
 const bookingRoutes = require('./routes/bookingRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const procurementRoutes = require('./routes/procurementRoutes');
-// Connect to MongoDB
-connectDB();
+
+// Connect to MongoDB, then make sure at least the default centres exist.
+// This prevents "Centre not found" errors caused by an empty/unseeded
+// database (e.g. a fresh clone, a new MongoDB Atlas cluster, etc.).
+connectDB().then(async () => {
+  const count = await Centre.countDocuments();
+  if (count === 0) {
+    console.log('No centres found — auto-seeding default centres...');
+    await Centre.insertMany([
+      { centreId: 'C001', name: 'Karnal Mandi', yardCapacityUsed: 50, gunnyBagsAvailable: true, trucksLiftingToday: true, status: 'OPEN' },
+      { centreId: 'C002', name: 'Panipat Mandi', yardCapacityUsed: 85, gunnyBagsAvailable: false, trucksLiftingToday: true, status: 'RESTRICTED' },
+      { centreId: 'C003', name: 'Kurukshetra Mandi', yardCapacityUsed: 100, gunnyBagsAvailable: true, trucksLiftingToday: false, status: 'PAUSED' },
+    ]);
+    console.log('Default centres created.');
+  }
+});
 
 // Middleware
 app.use(cors());

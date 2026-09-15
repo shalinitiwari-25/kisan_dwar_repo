@@ -35,7 +35,7 @@ function AnalyticsOverview() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div className="page-title">📊 State-Level Analytics Overview</div>
-            <div className="page-subtitle">Haryana Kharif Season 2024-25 · Live Procurement Dashboard</div>
+            <div className="page-subtitle">Kharif Season 2024-25 · Live Procurement Dashboard</div>
           </div>
           <span className="badge badge-green">
             <span className="badge-dot"></span>
