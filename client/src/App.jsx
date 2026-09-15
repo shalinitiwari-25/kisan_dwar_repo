@@ -4,6 +4,9 @@ import './App.css';
 
 import Navbar  from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import { getRole } from './utils/auth';
 
 // Farmer
 import FarmerDashboard from './pages/farmer/Dashboard';
@@ -20,12 +23,21 @@ import CapacityControl  from './pages/officer/CapacityControl';
 import AnalyticsOverview from './pages/government/AnalyticsOverview';
 import DistrictMonitor   from './pages/government/DistrictMonitor';
 
-function App() {
-  const [role, setRole] = useState('farmer');
+// Where an already-logged-in user should land when hitting an unknown
+// path (e.g. "/") — falls back to the farmer dashboard if nothing is
+// stored yet, in which case ProtectedRoute below sends them to /login.
+const ROLE_HOME = {
+  farmer: '/farmer',
+  officer: '/officer',
+  government: '/government',
+};
+
+function AppShell() {
+  const [role, setRole] = useState(getRole() || 'farmer');
   const [lang, setLang] = useState('en');
 
   return (
-    <BrowserRouter>
+    <>
       <Navbar role={role} setRole={setRole} lang={lang} setLang={setLang} />
 
       <div className="app-layout">
@@ -34,25 +46,55 @@ function App() {
         <main className="main-content">
           <Routes>
             {/* Farmer */}
-            <Route path="/farmer"          element={<FarmerDashboard />} />
-            <Route path="/farmer/booking"  element={<Booking />} />
-            <Route path="/farmer/queue"    element={<QueueStatus />} />
-            <Route path="/farmer/payment"  element={<PaymentStatus />} />
+            <Route path="/farmer" element={
+              <ProtectedRoute allowedRole="farmer"><FarmerDashboard /></ProtectedRoute>
+            } />
+            <Route path="/farmer/booking" element={
+              <ProtectedRoute allowedRole="farmer"><Booking /></ProtectedRoute>
+            } />
+            <Route path="/farmer/queue" element={
+              <ProtectedRoute allowedRole="farmer"><QueueStatus /></ProtectedRoute>
+            } />
+            <Route path="/farmer/payment" element={
+              <ProtectedRoute allowedRole="farmer"><PaymentStatus /></ProtectedRoute>
+            } />
 
             {/* Officer */}
-            <Route path="/officer"          element={<OfficerDashboard />} />
-            <Route path="/officer/queue"    element={<QueueManager />} />
-            <Route path="/officer/capacity" element={<CapacityControl />} />
+            <Route path="/officer" element={
+              <ProtectedRoute allowedRole="officer"><OfficerDashboard /></ProtectedRoute>
+            } />
+            <Route path="/officer/queue" element={
+              <ProtectedRoute allowedRole="officer"><QueueManager /></ProtectedRoute>
+            } />
+            <Route path="/officer/capacity" element={
+              <ProtectedRoute allowedRole="officer"><CapacityControl /></ProtectedRoute>
+            } />
 
             {/* Government */}
-            <Route path="/government"          element={<AnalyticsOverview />} />
-            <Route path="/government/district" element={<DistrictMonitor />} />
+            <Route path="/government" element={
+              <ProtectedRoute allowedRole="government"><AnalyticsOverview /></ProtectedRoute>
+            } />
+            <Route path="/government/district" element={
+              <ProtectedRoute allowedRole="government"><DistrictMonitor /></ProtectedRoute>
+            } />
 
-            {/* Default */}
-            <Route path="*" element={<Navigate to="/farmer" replace />} />
+            {/* Default — send to the logged-in user's home; ProtectedRoute
+                will bounce to /login if there's no valid session yet. */}
+            <Route path="*" element={<Navigate to={ROLE_HOME[getRole()] || '/farmer'} replace />} />
           </Routes>
         </main>
       </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
     </BrowserRouter>
   );
 }

@@ -2,19 +2,23 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const bcrypt = require('bcryptjs');
 const Centre = require('./models/Centre');
+const User = require('./models/User');
 const centreRoutes = require('./routes/centreRoutes');
 const app = express();
 const bookingRoutes = require('./routes/bookingRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const procurementRoutes = require('./routes/procurementRoutes');
+const authRoutes = require('./routes/authRoutes');
 
-// Connect to MongoDB, then make sure at least the default centres exist.
-// This prevents "Centre not found" errors caused by an empty/unseeded
-// database (e.g. a fresh clone, a new MongoDB Atlas cluster, etc.).
+// Connect to MongoDB, then make sure at least the default centres and demo
+// login accounts exist. This prevents "Centre not found" / login failures
+// caused by an empty/unseeded database (e.g. a fresh clone, a new MongoDB
+// Atlas cluster, etc.).
 connectDB().then(async () => {
-  const count = await Centre.countDocuments();
-  if (count === 0) {
+  const centreCount = await Centre.countDocuments();
+  if (centreCount === 0) {
     console.log('No centres found — auto-seeding default centres...');
     await Centre.insertMany([
       { centreId: 'C001', name: 'Karnal Mandi', yardCapacityUsed: 50, gunnyBagsAvailable: true, trucksLiftingToday: true, status: 'OPEN' },
@@ -22,6 +26,18 @@ connectDB().then(async () => {
       { centreId: 'C003', name: 'Kurukshetra Mandi', yardCapacityUsed: 100, gunnyBagsAvailable: true, trucksLiftingToday: false, status: 'PAUSED' },
     ]);
     console.log('Default centres created.');
+  }
+
+  const userCount = await User.countDocuments();
+  if (userCount === 0) {
+    console.log('No users found — auto-seeding demo login accounts...');
+    const passwordHash = await bcrypt.hash('password123', 10);
+    await User.insertMany([
+      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer' },
+      { name: 'Amit Sharma', email: 'officer@test.com', password: passwordHash, role: 'officer' },
+      { name: 'Priya Gupta', email: 'govt@test.com', password: passwordHash, role: 'government' },
+    ]);
+    console.log('Demo accounts created — farmer@test.com / officer@test.com / govt@test.com (password: password123)');
   }
 });
 
@@ -37,6 +53,7 @@ app.use('/api/centre', centreRoutes);
 app.use('/api/booking', bookingRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/procurement', procurementRoutes);
+app.use('/api/auth', authRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

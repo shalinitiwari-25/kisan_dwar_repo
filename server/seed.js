@@ -1,9 +1,11 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const Centre = require('./models/Centre');
 const Booking = require('./models/Booking');
 const Payment = require('./models/Payment');
 const Procurement = require('./models/Procurement');
+const User = require('./models/User');
 
 const seedData = async () => {
   try {
@@ -15,6 +17,7 @@ const seedData = async () => {
     await Booking.deleteMany({});
     await Payment.deleteMany({});
     await Procurement.deleteMany({});
+    await User.deleteMany({});
 
     // Create centres
     const centres = await Centre.insertMany([
@@ -44,6 +47,15 @@ console.log('Procurement data seeded');
       { bookingId: bookings[1]._id, weighment: true, qualityCheck: false, amount: 0, status: 'processing' }
     ]);
     console.log('Payments seeded');
+
+    // Create the 3 demo login accounts (password: password123)
+    const passwordHash = await bcrypt.hash('password123', 10);
+    await User.insertMany([
+      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer' },
+      { name: 'Amit Sharma', email: 'officer@test.com', password: passwordHash, role: 'officer' },
+      { name: 'Priya Gupta', email: 'govt@test.com', password: passwordHash, role: 'government' },
+    ]);
+    console.log('Demo login accounts seeded (farmer@test.com / officer@test.com / govt@test.com, password: password123)');
 
     console.log('Seeding complete!');
     process.exit();

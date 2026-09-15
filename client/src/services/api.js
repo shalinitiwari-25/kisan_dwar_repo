@@ -26,4 +26,7 @@ export const updatePayment = (bookingId, data) => API.patch(`/payment/${bookingI
 // ── Procurement (government district targets) ────────────
 export const getProcurement = () => API.get('/procurement');
 
+// ── Auth ──────────────────────────────────────────────
+export const login = (data) => API.post('/auth/login', data);
+
 export default API;

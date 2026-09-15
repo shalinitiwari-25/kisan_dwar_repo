@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import { removeToken } from '../utils/auth';
 
 const roles = [
   { key: 'farmer',     label: '👨‍🌾 Farmer',   path: '/farmer' },
@@ -24,6 +25,11 @@ function Navbar({ role, setRole, lang, setLang }) {
   const handleRoleSwitch = (r) => {
     setRole(r.key);
     navigate(r.path);
+  };
+
+  const handleLogout = () => {
+    removeToken();
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -67,6 +73,10 @@ function Navbar({ role, setRole, lang, setLang }) {
           <div className="profile-avatar">{profile.initials}</div>
           <span className="profile-name">{profile.name}</span>
         </div>
+
+        <button className="btn btn-outline btn-sm" onClick={handleLogout} title="Logout">
+          Logout
+        </button>
       </div>
     </nav>
   );
