@@ -1,0 +1,12 @@
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', 'Outfit', system-ui, sans-serif;
+  background: #f9fafb;
+  color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+}
