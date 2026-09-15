@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../services/api';
-import { saveToken, saveRole } from '../utils/auth';
+import { saveToken, saveRole, saveUser } from '../utils/auth';
 import logo from '../assets/logo.png';
 
 // Where each role lands after a successful login
@@ -12,9 +12,9 @@ const ROLE_HOME = {
 };
 
 const DEMO_ACCOUNTS = [
-  { role: 'Farmer', email: 'farmer@test.com' },
-  { role: 'Officer', email: 'officer@test.com' },
-  { role: 'Government', email: 'govt@test.com' },
+  { role: 'Farmer',     email: 'farmer@test.com' },
+  { role: 'Officer',   email: 'officer@test.com' },
+  { role: 'Govt Admin', email: 'govt@test.com' },
 ];
 
 function Login() {
@@ -32,6 +32,7 @@ function Login() {
       const res = await login({ email, password });
       saveToken(res.data.token);
       saveRole(res.data.user.role);
+      saveUser(res.data.user); // persist name / phone / aadhaar
       navigate(ROLE_HOME[res.data.user.role] || '/farmer', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
@@ -92,8 +93,16 @@ function Login() {
           </button>
         </form>
 
+        {/* Register link */}
+        <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '13px', color: 'var(--gray-500)' }}>
+          New user?{' '}
+          <Link to="/register" style={{ color: 'var(--green-600)', fontWeight: 600, textDecoration: 'none' }}>
+            Register here →
+          </Link>
+        </div>
+
         <div className="login-demo">
-          <div className="login-demo-label">Demo accounts (password: password123)</div>
+          <div className="login-demo-label">Demo accounts (password: <strong>password123</strong>)</div>
           <div className="login-demo-list">
             {DEMO_ACCOUNTS.map((acc) => (
               <button

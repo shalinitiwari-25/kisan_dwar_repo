@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import StatCard from '../../components/StatCard';
 import { getCentre, getBookingsByCentre } from '../../services/api';
+import { getUser } from '../../utils/auth';
 import farmerHero from '../../assets/farmer-hero.png';
 
 const CENTRE_MAP = {
@@ -19,11 +21,26 @@ function getLastBooking() {
 }
 
 function Dashboard() {
+  const user = getUser();
+  const farmerName = user.name || 'Farmer';
   const lastBooking = getLastBooking();
   const [centre, setCentre] = useState(null);
   const [queuePosition, setQueuePosition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
+
+  // Build QR value from saved booking (for gatekeeper scan)
+  const qrValue = lastBooking ? JSON.stringify({
+    tokenId: lastBooking.tokenId,
+    bookingId: lastBooking.id,
+    centreId: lastBooking.centreId,
+    centre: lastBooking.centre,
+    crop: lastBooking.crop,
+    quantity: lastBooking.quantity,
+    slot: lastBooking.slot,
+    farmerName,
+  }) : null;
 
   useEffect(() => {
     const centreId = lastBooking?.centreId || 'C001';
@@ -62,7 +79,7 @@ function Dashboard() {
         <div className="dashboard-hero-overlay"></div>
         <div className="dashboard-hero-content">
           <div>
-            <div className="dashboard-hero-title">Namaste, Ramesh Kumar!</div>
+            <div className="dashboard-hero-title">Namaste, {farmerName}!</div>
             <div className="dashboard-hero-subtitle">
               {centre ? centre.name : 'Loading…'}
             </div>
@@ -186,6 +203,102 @@ function Dashboard() {
             </>
           )}
         </div>
+      </div>
+
+      {/* ── My QR Token ─────────────────────────────────────────────────── */}
+      {qrValue && (
+        <div className="card" style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>📱 My Booking QR Token</div>
+            <span className="badge badge-green"><span className="badge-dot"></span>Ready to show at gate</span>
+          </div>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid var(--gray-100)', display: 'inline-block' }}>
+              <QRCodeSVG value={qrValue} size={140} level="M" />
+            </div>
+            <div style={{ flex: 1, minWidth: '180px' }}>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--green-700)', letterSpacing: '1px', marginBottom: '10px' }}>
+                {lastBooking.tokenId}
+              </div>
+              {[
+                ['Centre', lastBooking.centre],
+                ['Crop', lastBooking.crop],
+                ['Quantity', `${lastBooking.quantity} Quintals`],
+                ['Slot', lastBooking.slot],
+              ].map(([label, val]) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '5px 0', borderBottom: '1px solid var(--gray-100)' }}>
+                  <span style={{ color: 'var(--gray-500)' }}>{label}</span>
+                  <span style={{ fontWeight: 600 }}>{val}</span>
+                </div>
+              ))}
+              <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--gray-400)', fontStyle: 'italic' }}>
+                Show this QR at the Mandi gate for entry
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Kisan Pehchan Patra (Farmer ID Card) ────────────────────────── */}
+      <div className="card" style={{ marginTop: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>🪪 Kisan Pehchan Patra</div>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setShowProfile(p => !p)}
+          >
+            {showProfile ? '▲ Hide' : '▼ View ID'}
+          </button>
+        </div>
+
+        {showProfile && (
+          <div style={{
+            background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+            border: '2px solid var(--green-300)',
+            borderRadius: '14px',
+            padding: '20px',
+          }}>
+            {/* Header strip */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '2px', color: 'var(--green-700)', textTransform: 'uppercase' }}>
+                  Government of India – Kisan Pehchan Patra
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--green-900)', marginTop: '4px' }}>
+                  {farmerName}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--green-700)', marginTop: '2px' }}>Farmer / किसान</div>
+              </div>
+              <div style={{
+                background: 'var(--green-700)', color: '#fff',
+                borderRadius: '8px', padding: '6px 10px',
+                fontSize: '11px', fontWeight: 700, textAlign: 'center',
+              }}>
+                KP-DEMO<br />2025
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {[
+                ['Farmer ID', 'KP-2025-HR-00429'],
+                ['Aadhaar', user.aadhaar ? `XXXX XXXX ${user.aadhaar.slice(-4)}` : 'XXXX XXXX XXXX'],
+                ['Phone', user.phone ? `+91-${user.phone.slice(0,4)}XXXXX${user.phone.slice(-1)}` : 'Not set'],
+                ['State', 'Haryana'],
+                ['Address', user.address || 'Village Dhanora, Karnal, Haryana'],
+                ['Bank A/C', user.bankAccount || '****4321 (Punjab National Bank)'],
+              ].map(([label, val]) => (
+                <div key={label} style={{ background: 'rgba(255,255,255,0.6)', borderRadius: '8px', padding: '8px 12px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--green-700)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--green-900)' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--green-700)', borderTop: '1px solid var(--green-200)', paddingTop: '10px' }}>
+              ✅ Verified Farmer · MSP Eligible · Kisan Dwar Portal
+            </div>
+          </div>
+        )}
       </div>
 
       {loading && <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>Loading live data…</p>}

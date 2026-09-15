@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const Centre = require('../models/Centre');
+const User = require('../models/User');
+const { sendSms } = require('../utils/sms');
 
 // POST a new booking
 router.post('/', async (req, res) => {
@@ -54,7 +56,29 @@ router.post('/', async (req, res) => {
       status: 'booked',
     });
 
+    // Send SMS notification to farmer — fire-and-forget (don't block the response)
+    try {
+      const farmer = await User.findOne({ aadhaar });
+      const phone = farmer?.phone;
+      if (phone) {
+        const tokenId = `KD-${String(tokenNo).padStart(5, '0')}`;
+        const centreName = centre.name || centreId;
+        const smsText =
+          `Your Kisan Dwar slot is confirmed!\n` +
+          `Token: ${tokenId} | Centre: ${centreName}\n` +
+          `Crop: ${crop} (${quantity} Qtl)\n` +
+          `Arrive on time & show QR at gate.\n` +
+          `-Kisan Dwar`;
+        // Format phone: prepend +91 if not already international
+        const toPhone = phone.startsWith('+') ? phone : `+91${phone}`;
+        sendSms(toPhone, smsText).catch(() => {}); // non-blocking
+      }
+    } catch (_) {
+      // SMS failure should never break the booking response
+    }
+
     res.status(201).json(booking);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
