@@ -1,31 +1,17 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
-import { removeToken } from '../utils/auth';
+import { removeToken, getUser } from '../utils/auth';
 
-const roles = [
-  { key: 'farmer',     label: '👨‍🌾 Farmer',   path: '/farmer' },
-  { key: 'officer',    label: '🏛️ Officer',   path: '/officer' },
-  { key: 'government', label: '📊 Govt Admin', path: '/government' },
-];
-
-const profiles = {
-  farmer:     { initials: 'RK', name: 'Ramesh Kumar' },
-  officer:    { initials: 'AS', name: 'Amit Sharma' },
-  government: { initials: 'PG', name: 'Priya Gupta' },
-};
-
-function Navbar({ role, setRole, lang, setLang }) {
+function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [lang, setLang] = useState('en');
 
-  const activeRole = roles.find(r => location.pathname.startsWith(r.path))?.key || role;
-  const profile = profiles[activeRole];
-
-  const handleRoleSwitch = (r) => {
-    setRole(r.key);
-    navigate(r.path);
-  };
+  const user = getUser();
+  // Build initials from name (e.g. "Ramesh Kumar" → "RK")
+  const initials = user.name
+    ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
 
   const handleLogout = () => {
     removeToken();
@@ -46,19 +32,6 @@ function Navbar({ role, setRole, lang, setLang }) {
       </div>
 
       <div className="navbar-right">
-        {/* Role Switcher */}
-        <div className="role-switcher">
-          {roles.map(r => (
-            <button
-              key={r.key}
-              className={`role-btn ${activeRole === r.key ? 'active' : ''}`}
-              onClick={() => handleRoleSwitch(r)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-
         {/* Language Toggle */}
         <button
           className={`lang-btn ${lang === 'en' ? 'active' : ''}`}
@@ -70,8 +43,8 @@ function Navbar({ role, setRole, lang, setLang }) {
 
         {/* Profile */}
         <div className="profile-chip">
-          <div className="profile-avatar">{profile.initials}</div>
-          <span className="profile-name">{profile.name}</span>
+          <div className="profile-avatar">{initials}</div>
+          <span className="profile-name">{user.name || 'User'}</span>
         </div>
 
         <button className="btn btn-outline btn-sm" onClick={handleLogout} title="Logout">

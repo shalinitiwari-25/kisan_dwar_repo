@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema({
     enum: ['farmer', 'officer', 'government'],
     required: true,
   },
+  // Optional fields added for registration flow
+  phone: { type: String, default: '' },
+  aadhaar: { type: String, default: '' },
+  address: { type: String, default: '' },
+  bankAccount: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

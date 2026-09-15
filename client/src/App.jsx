@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 
@@ -6,6 +5,7 @@ import Navbar  from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import { getRole } from './utils/auth';
 
 // Farmer
@@ -23,9 +23,7 @@ import CapacityControl  from './pages/officer/CapacityControl';
 import AnalyticsOverview from './pages/government/AnalyticsOverview';
 import DistrictMonitor   from './pages/government/DistrictMonitor';
 
-// Where an already-logged-in user should land when hitting an unknown
-// path (e.g. "/") — falls back to the farmer dashboard if nothing is
-// stored yet, in which case ProtectedRoute below sends them to /login.
+// Where an already-logged-in user should land when hitting an unknown path
 const ROLE_HOME = {
   farmer: '/farmer',
   officer: '/officer',
@@ -33,12 +31,9 @@ const ROLE_HOME = {
 };
 
 function AppShell() {
-  const [role, setRole] = useState(getRole() || 'farmer');
-  const [lang, setLang] = useState('en');
-
   return (
     <>
-      <Navbar role={role} setRole={setRole} lang={lang} setLang={setLang} />
+      <Navbar />
 
       <div className="app-layout">
         <Sidebar />
@@ -78,8 +73,7 @@ function AppShell() {
               <ProtectedRoute allowedRole="government"><DistrictMonitor /></ProtectedRoute>
             } />
 
-            {/* Default — send to the logged-in user's home; ProtectedRoute
-                will bounce to /login if there's no valid session yet. */}
+            {/* Default — send to the logged-in user's home */}
             <Route path="*" element={<Navigate to={ROLE_HOME[getRole()] || '/farmer'} replace />} />
           </Routes>
         </main>
@@ -92,8 +86,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/*" element={<AppShell />} />
+        <Route path="/login"    element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/*"        element={<AppShell />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import QRModal from '../../components/QRModal';
 import { createBooking, getCentre } from '../../services/api';
+import { getUser } from '../../utils/auth';
 
 const CENTRE_MAP = {
   'C001': 'Karnal Mandi',
@@ -17,21 +18,24 @@ const slots = [
 ];
 
 function Booking() {
+  const currentUser = getUser();
+
   const [form, setForm] = useState({
     crop: '',
     quantity: '',
-    aadhaar: '',
+    aadhaar: currentUser.aadhaar || '',
     centreId: 'C001',
     date: '',
   });
   const [selectedSlot, setSelectedSlot] = useState(2); // default recommended
-  const [aadhaarVerified, setAadhaarVerified] = useState(false);
+  const [aadhaarVerified, setAadhaarVerified] = useState(!!currentUser.aadhaar);
   const [loading, setLoading] = useState(false);
   const [centreStatus, setCentreStatus] = useState('OPEN');
   const [error, setError] = useState('');
   const [suggestedCentre, setSuggestedCentre] = useState(null);
   const [booking, setBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -87,7 +91,7 @@ function Booking() {
     setLoading(true);
     try {
       const res = await createBooking({
-        farmerName: 'Ramesh Kumar',
+        farmerName: currentUser.name || 'Farmer',
         aadhaar: form.aadhaar,
         crop: form.crop,
         quantity: parseInt(form.quantity),
@@ -112,7 +116,9 @@ function Booking() {
       localStorage.setItem('kd_lastBooking', JSON.stringify(bookingRecord));
 
       setBooking(bookingRecord);
+      setSmsSent(true);  // show SMS confirmation banner
       setShowModal(true);
+
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.message || '';
@@ -148,6 +154,21 @@ function Booking() {
           {error && (
             <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '14px', fontWeight: 500 }}>
               {error}
+            </div>
+          )}
+
+          {/* SMS confirmation banner */}
+          {smsSent && currentUser.phone && (
+            <div style={{ background: '#f0fdf4', border: '1.5px solid var(--green-300)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--green-700)', fontWeight: 500 }}>
+              📱 Booking confirmation SMS sent to <strong>+91-{currentUser.phone.slice(0, 4)}XXXXX{currentUser.phone.slice(-1)}</strong>
+            </div>
+          )}
+
+          {/* Farmer info strip */}
+          {currentUser.name && (
+            <div style={{ background: 'var(--gray-50)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '13px', color: 'var(--gray-600)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <span>👨‍🌾 <strong>{currentUser.name}</strong></span>
+              {currentUser.aadhaar && <span>🪪 Aadhaar: XXXX XXXX {currentUser.aadhaar.slice(-4)}</span>}
             </div>
           )}
 

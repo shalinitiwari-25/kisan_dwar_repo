@@ -33,9 +33,9 @@ connectDB().then(async () => {
     console.log('No users found — auto-seeding demo login accounts...');
     const passwordHash = await bcrypt.hash('password123', 10);
     await User.insertMany([
-      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer' },
-      { name: 'Amit Sharma', email: 'officer@test.com', password: passwordHash, role: 'officer' },
-      { name: 'Priya Gupta', email: 'govt@test.com', password: passwordHash, role: 'government' },
+      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer', phone: '9876543210', aadhaar: '123456789012', address: 'Village Dhanora, Karnal, Haryana', bankAccount: '****4321 (Punjab National Bank)' },
+      { name: 'Amit Sharma',  email: 'officer@test.com', password: passwordHash, role: 'officer', phone: '9876500001', aadhaar: '000000000001' },
+      { name: 'Priya Gupta',  email: 'govt@test.com',   password: passwordHash, role: 'government', phone: '9876500002', aadhaar: '000000000002' },
     ]);
     console.log('Demo accounts created — farmer@test.com / officer@test.com / govt@test.com (password: password123)');
   }

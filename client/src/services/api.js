@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://kisan-dwar-backend.onrender.com/api',
+  baseURL: '/api',
   timeout: 8000,
 });
 
@@ -28,5 +28,6 @@ export const getProcurement = () => API.get('/procurement');
 
 // ── Auth ──────────────────────────────────────────────
 export const login = (data) => API.post('/auth/login', data);
+export const register = (data) => API.post('/auth/register', data);
 
 export default API;
