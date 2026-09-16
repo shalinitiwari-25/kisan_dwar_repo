@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://kisan-dwar-backend.onrender.com/',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://kisan-dwar-backend.onrender.com/api',
   timeout: 8000,
 });
 
