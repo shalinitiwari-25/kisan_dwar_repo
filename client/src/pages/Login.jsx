@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../services/api';
 import { saveToken, saveRole, saveUser } from '../utils/auth';
 import logo from '../assets/logo.png';
+import LanguageToggle from '../components/LanguageToggle';
 
 // Where each role lands after a successful login
 const ROLE_HOME = {
@@ -49,8 +50,11 @@ function Login() {
 
   return (
     <div className="login-page">
+      <div style={{ position: 'absolute', top: '20px', right: '24px' }}>
+        <LanguageToggle />
+      </div>
       <div className="login-card">
-        <div className="login-brand">
+        <div className="login-brand" data-no-translate>
           <img src={logo} alt="Kisan Dwar" onError={(e) => { e.target.style.display = 'none'; }} />
           <div>
             <div className="login-brand-title">

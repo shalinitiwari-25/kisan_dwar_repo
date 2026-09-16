@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { register } from "../services/api";
 import { saveToken, saveRole, saveUser } from "../utils/auth";
 import logo from "../assets/logo.png";
+import LanguageToggle from "../components/LanguageToggle";
 
 const ROLE_HOME = {
   farmer: "/farmer",
@@ -82,9 +83,12 @@ function Register() {
 
   return (
     <div className="login-page">
+      <div style={{ position: "absolute", top: "20px", right: "24px" }}>
+        <LanguageToggle />
+      </div>
       <div className="login-card">
         {/* Brand */}
-        <div className="login-brand">
+        <div className="login-brand" data-no-translate>
           <img src={logo} alt="Kisan Dwar" onError={(e) => { e.target.style.display = "none"; }} />
           <div>
             <div className="login-brand-title">
