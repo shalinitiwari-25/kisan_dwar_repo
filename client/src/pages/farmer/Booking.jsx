@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import QRModal from '../../components/QRModal';
-import { createBooking, getCentre } from '../../services/api';
+import { createBooking, getCentre, updateBookingStatus } from '../../services/api';
 import { getUser } from '../../utils/auth';
 
 const CENTRE_MAP = {
@@ -33,6 +33,8 @@ function Booking() {
   const [centreStatus, setCentreStatus] = useState('OPEN');
   const [error, setError] = useState('');
   const [suggestedCentre, setSuggestedCentre] = useState(null);
+  const [existingBooking, setExistingBooking] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
   const [booking, setBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
@@ -74,6 +76,7 @@ function Booking() {
     e.preventDefault();
     setError('');
     setSuggestedCentre(null);
+    setExistingBooking(null);
 
     if (!form.crop || !form.quantity || !form.centreId || !form.date) {
       setError('Please fill in all required fields.');
@@ -129,6 +132,7 @@ function Booking() {
         setSuggestedCentre(data.suggestedCentre || null);
       } else if (err.response?.status === 409) {
         setError(`🚫 ${msg}`);
+        setExistingBooking(data?.existingBooking || null);
       } else if (msg) {
         setError(msg);
       } else {
@@ -136,6 +140,23 @@ function Booking() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Demo/reset convenience: lets you free up your Aadhaar's one-active-
+  // booking slot instantly, without needing to switch to the officer view
+  // to process/no-show it manually.
+  const handleCancelExisting = async () => {
+    if (!existingBooking?._id) return;
+    setCancelling(true);
+    try {
+      await updateBookingStatus(existingBooking._id, 'cancelled');
+      setError('');
+      setExistingBooking(null);
+    } catch {
+      setError('Could not cancel the existing booking. Please try again.');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -154,6 +175,19 @@ function Booking() {
           {error && (
             <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '14px', fontWeight: 500 }}>
               {error}
+              {existingBooking && (
+                <div style={{ marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={handleCancelExisting}
+                    disabled={cancelling}
+                    style={{ borderColor: '#b91c1c', color: '#b91c1c' }}
+                  >
+                    {cancelling ? 'Cancelling…' : `✕ Cancel Token #${existingBooking.tokenNo} & Book Again`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
