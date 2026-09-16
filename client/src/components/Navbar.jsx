@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { removeToken, getUser } from '../utils/auth';
+import LanguageToggle from './LanguageToggle';
 
 function Navbar() {
   const navigate = useNavigate();
-  const [lang, setLang] = useState('en');
 
   const user = getUser();
   // Build initials from name (e.g. "Ramesh Kumar" → "RK")
@@ -22,7 +21,7 @@ function Navbar() {
     <nav className="navbar">
       <div className="navbar-logo">
         <img src={logo} alt="Kisan Dwar Logo" onError={(e) => { e.target.style.display='none'; }} />
-        <div className="navbar-logo-text">
+        <div className="navbar-logo-text" data-no-translate>
           <div>
             <span className="brand-kisan">Kisan</span>
             <span className="brand-dwar"> Dwar</span>
@@ -33,13 +32,7 @@ function Navbar() {
 
       <div className="navbar-right">
         {/* Language Toggle */}
-        <button
-          className={`lang-btn ${lang === 'en' ? 'active' : ''}`}
-          onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-          title="Toggle Language"
-        >
-          {lang === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 English'}
-        </button>
+        <LanguageToggle />
 
         {/* Profile */}
         <div className="profile-chip">
