@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+// Always talk to the deployed Render backend (not localhost).
+// The trailing "/api" here is required — it was missing before, which
+// caused every request (including login) to 404 against Render.
+// You can still override this per-environment by setting
+// VITE_API_BASE_URL in a .env file if you ever need to point at
+// localhost for local-only testing.
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://kisan-dwar-backend.onrender.com/api',
   timeout: 8000,

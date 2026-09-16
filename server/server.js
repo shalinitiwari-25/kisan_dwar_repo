@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 const bcrypt = require('bcryptjs');
 const Centre = require('./models/Centre');
 const User = require('./models/User');
+const Procurement = require('./models/Procurement');
 const centreRoutes = require('./routes/centreRoutes');
 const app = express();
 const bookingRoutes = require('./routes/bookingRoutes');
@@ -38,6 +39,19 @@ connectDB().then(async () => {
       { name: 'Priya Gupta',  email: 'govt@test.com',   password: passwordHash, role: 'government', phone: '9876500002', aadhaar: '000000000002' },
     ]);
     console.log('Demo accounts created — farmer@test.com / officer@test.com / govt@test.com (password: password123)');
+  }
+
+  const procurementCount = await Procurement.countDocuments();
+  if (procurementCount === 0) {
+    console.log('No procurement data found — auto-seeding district demo data...');
+    await Procurement.insertMany([
+      { district: 'Karnal', target: 20000, achieved: 16800 },
+      { district: 'Panipat', target: 15000, achieved: 10700 },
+      { district: 'Kurukshetra', target: 18000, achieved: 12900 },
+      { district: 'Ambala', target: 12000, achieved: 9400 },
+      { district: 'Hisar', target: 16000, achieved: 7200 },
+    ]);
+    console.log('District procurement demo data created.');
   }
 });
 

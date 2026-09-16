@@ -12,13 +12,13 @@ const ROLE_HOME = {
 };
 
 const DEMO_ACCOUNTS = [
-  { role: 'Farmer',     email: 'farmer@test.com' },
-  { role: 'Officer',   email: 'officer@test.com' },
-  { role: 'Govt Admin', email: 'govt@test.com' },
+  { role: 'Farmer',     phone: '9876543210' },
+  { role: 'Officer',    phone: '9876500001' },
+  { role: 'Govt Admin', phone: '9876500002' },
 ];
 
 function Login() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await login({ email, password });
+      const res = await login({ phone, password });
       saveToken(res.data.token);
       saveRole(res.data.user.role);
       saveUser(res.data.user); // persist name / phone / aadhaar
@@ -41,8 +41,8 @@ function Login() {
     }
   };
 
-  const fillDemo = (demoEmail) => {
-    setEmail(demoEmail);
+  const fillDemo = (demoPhone) => {
+    setPhone(demoPhone);
     setPassword('password123');
     setError('');
   };
@@ -67,15 +67,19 @@ function Login() {
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              className="form-control"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <label className="form-label">Phone Number</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '14px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>+91</span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="10-digit mobile number"
+                maxLength={10}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                required
+              />
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Password</label>
@@ -107,11 +111,11 @@ function Login() {
             {DEMO_ACCOUNTS.map((acc) => (
               <button
                 type="button"
-                key={acc.email}
+                key={acc.phone}
                 className="login-demo-chip"
-                onClick={() => fillDemo(acc.email)}
+                onClick={() => fillDemo(acc.phone)}
               >
-                {acc.role}: {acc.email}
+                {acc.role}: +91 {acc.phone}
               </button>
             ))}
           </div>

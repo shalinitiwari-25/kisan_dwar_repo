@@ -11,20 +11,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'kisan_dwar_dev_secret_change_in_pr
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { phone, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
+    if (!phone || !password) {
+      return res.status(400).json({ message: 'Phone number and password are required.' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const user = await User.findOne({ phone: phone.trim() });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'Invalid phone number or password.' });
     }
 
     const passwordMatches = await bcrypt.compare(password, user.password);
     if (!passwordMatches) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'Invalid phone number or password.' });
     }
 
     const token = jwt.sign(

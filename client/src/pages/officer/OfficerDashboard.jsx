@@ -85,7 +85,7 @@ function OfficerDashboard() {
               ))}
             </select>
             <span className={`badge ${risk.color}`} style={{ fontSize: '13px', padding: '6px 16px' }}>
-              AI Risk: {risk.label} Congestion
+              {risk.label} Congestion Risk
             </span>
           </div>
         </div>

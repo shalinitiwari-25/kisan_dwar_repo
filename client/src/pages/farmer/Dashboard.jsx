@@ -99,9 +99,9 @@ function Dashboard() {
         </div>
       )}
 
-      {/* AI Departure Guidance */}
+      {/* Departure Guidance */}
       <div className="ai-card">
-        <div className="ai-card-label">AI Departure Guidance</div>
+        <div className="ai-card-label">Smart Departure Guidance</div>
         {lastBooking ? (
           <>
             <div className="ai-card-time">{departLabel}</div>

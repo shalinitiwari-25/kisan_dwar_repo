@@ -1,4 +1,14 @@
 import { useEffect, useState } from 'react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import StatCard from '../../components/StatCard';
 import { getProcurement, getAllCentres } from '../../services/api';
 
@@ -74,6 +84,31 @@ function AnalyticsOverview() {
           <span>Achieved: {totalAchieved.toLocaleString('en-IN')} MT</span>
           <span>Remaining: {Math.max(totalTarget - totalAchieved, 0).toLocaleString('en-IN')} MT</span>
         </div>
+      </div>
+
+      {/* District-wise Procurement Chart */}
+      <div className="card mb-20">
+        <div className="card-title">📊 District-Wise Procurement — Target vs Achieved (MT)</div>
+        {loading ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--gray-400)', fontSize: '13px' }}>
+            Loading chart…
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={districts.map(d => ({ district: d.district, Target: d.target, Achieved: d.achieved }))} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
+              <XAxis dataKey="district" tick={{ fontSize: 12, fill: 'var(--gray-500)' }} />
+              <YAxis tick={{ fontSize: 12, fill: 'var(--gray-500)' }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip
+                formatter={(value) => `${value.toLocaleString('en-IN')} MT`}
+                contentStyle={{ borderRadius: '10px', border: '1px solid var(--gray-100)', fontSize: '13px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '13px' }} />
+              <Bar dataKey="Target" fill="#cbd5e1" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="Achieved" fill="var(--green-600, #16a34a)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       <div className="grid-2">
