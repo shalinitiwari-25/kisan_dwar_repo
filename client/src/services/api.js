@@ -7,7 +7,7 @@ import axios from 'axios';
 // VITE_API_BASE_URL in a .env file if you ever need to point at
 // localhost for local-only testing.
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://kisan-dwar-backend.onrender.com/api',
   timeout: 8000,
 });
 
