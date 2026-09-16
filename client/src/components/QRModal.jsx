@@ -1,6 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react';
 
-function QRModal({ booking, onClose }) {
+function QRModal({ booking, onClose, phone }) {
   if (!booking) return null;
 
   // Encode the key ticket details into the QR code so gate staff can scan
@@ -14,6 +14,19 @@ function QRModal({ booking, onClose }) {
     quantity: booking.quantity,
     slot: booking.slot,
   });
+
+  // Mirrors the exact message server/utils/sms.js sends (or logs, in mock
+  // mode) so the demo shows the real content, not a generic placeholder.
+  const smsPreview =
+    `Your Kisan Dwar slot is confirmed!\n` +
+    `Token: ${booking.tokenId} | Centre: ${booking.centre}\n` +
+    `Crop: ${booking.crop} (${booking.quantity} Qtl)\n` +
+    `Arrive on time & show QR at gate.\n` +
+    `-Kisan Dwar`;
+
+  const maskedPhone = phone
+    ? `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`
+    : null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -60,6 +73,39 @@ function QRModal({ booking, onClose }) {
         <button className="btn btn-primary btn-lg" onClick={onClose}>
           ✓ Done
         </button>
+
+        {/* Simulated SMS notification — mirrors the real message the
+            backend generates on every booking (server/utils/sms.js) */}
+        <div className="sms-preview" style={{
+          textAlign: 'left',
+          marginTop: '18px',
+          background: '#f0fdf4',
+          border: '1.5px solid var(--green-200)',
+          borderRadius: '14px',
+          padding: '14px 16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '18px' }}>📩</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--green-700)' }}>
+              SMS sent{maskedPhone ? ` to ${maskedPhone}` : ''}
+            </span>
+            <span className="badge badge-green" style={{ marginLeft: 'auto', fontSize: '10px', padding: '3px 10px' }}>
+              Delivered
+            </span>
+          </div>
+          <div style={{
+            background: '#ffffff',
+            border: '1px solid var(--gray-100)',
+            borderRadius: '10px',
+            padding: '10px 12px',
+            fontSize: '12.5px',
+            color: 'var(--gray-700)',
+            whiteSpace: 'pre-line',
+            lineHeight: 1.5,
+          }}>
+            {smsPreview}
+          </div>
+        </div>
       </div>
     </div>
   );

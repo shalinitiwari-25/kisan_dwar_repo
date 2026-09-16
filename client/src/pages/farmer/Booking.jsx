@@ -351,7 +351,7 @@ function Booking() {
       </div>
 
       {showModal && (
-        <QRModal booking={booking} onClose={() => setShowModal(false)} />
+        <QRModal booking={booking} onClose={() => setShowModal(false)} phone={currentUser.phone} />
       )}
     </div>
   );
