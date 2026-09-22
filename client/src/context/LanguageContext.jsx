@@ -5,7 +5,7 @@ const LanguageContext = createContext(null);
 
 const STORAGE_KEY = 'kd_lang';
 
-// Demo scope: English + Hindi only, via the free MyMemory API.
+// English + Hindi, translated via the Bhashini API (server-side).
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
   { code: 'hi', name: 'Hindi',   nativeName: 'हिंदी' },
