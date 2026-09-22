@@ -5,14 +5,24 @@ const LanguageContext = createContext(null);
 
 const STORAGE_KEY = 'kd_lang';
 
-// English + Hindi, translated via the Bhashini API (server-side).
+// English + 6 Indian languages, translated via the Bhashini API
+// (server-side). Codes are ISO 639-1, which is what Bhashini expects.
+// Not every language here is guaranteed to be enabled on every Bhashini
+// API key — if a language your key doesn't support is picked, the
+// picker shows an inline error instead of silently doing nothing.
 export const SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'hi', name: 'Hindi',   nativeName: 'हिंदी' },
+  { code: 'en', name: 'English',  nativeName: 'English' },
+  { code: 'hi', name: 'Hindi',    nativeName: 'हिंदी' },
+  { code: 'pa', name: 'Punjabi',  nativeName: 'ਪੰਜਾਬੀ' },
+  { code: 'or', name: 'Odia',     nativeName: 'ଓଡ଼ିଆ' },
+  { code: 'bn', name: 'Bengali',  nativeName: 'বাংলা' },
+  { code: 'mr', name: 'Marathi',  nativeName: 'मराठी' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
 ];
 
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(() => localStorage.getItem(STORAGE_KEY) || 'en');
+  const [translateError, setTranslateError] = useState(null);
   const langRef = useRef(lang);
   langRef.current = lang;
 
@@ -27,13 +37,14 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, lang);
     document.documentElement.lang = lang;
-    translatePage(lang);
+    setTranslateError(null);
+    translatePage(lang, undefined, (message) => setTranslateError(message));
   }, [lang]);
 
-  const toggleLang = () => setLang((prev) => (prev === 'en' ? 'hi' : 'en'));
-
   return (
-    <LanguageContext.Provider value={{ lang, setLang, toggleLang, languages: SUPPORTED_LANGUAGES }}>
+    <LanguageContext.Provider
+      value={{ lang, setLang, languages: SUPPORTED_LANGUAGES, translateError }}
+    >
       {children}
     </LanguageContext.Provider>
   );

@@ -180,6 +180,60 @@ body {
   border-color: var(--green-600);
 }
 
+.lang-select-container {
+  position: relative;
+}
+
+.lang-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--gray-200);
+  background: white;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  transition: all 0.2s;
+}
+
+.lang-select-wrap:hover,
+.lang-select-wrap:focus-within {
+  border-color: var(--green-600);
+}
+
+.lang-select-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.lang-select {
+  border: none;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-600);
+  font-family: var(--font-sans);
+  padding: 2px 0;
+  max-width: 120px;
+}
+
+.lang-select-error {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 220px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  z-index: 50;
+}
+
 .role-switcher {
   display: flex;
   align-items: center;
