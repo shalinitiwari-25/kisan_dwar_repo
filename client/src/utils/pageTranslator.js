@@ -67,7 +67,7 @@ function collectPlaceholderEls(root) {
   });
 }
 
-async function resolveTranslations(texts, target) {
+async function resolveTranslations(texts, target, onError) {
   const store = loadCache();
   const targetStore = store[target] || (store[target] = {});
   const uniqueToFetch = [...new Set(texts.filter((t) => !(t in targetStore)))];
@@ -81,11 +81,15 @@ async function resolveTranslations(texts, target) {
       });
       saveCache();
     } catch (err) {
-      console.warn('Translation request failed:', err.response?.data?.message || err.message);
-      // Fall back to original text so the UI doesn't break
+      const message = err.response?.data?.message || err.message || 'Translation request failed';
+      console.warn('Translation request failed:', message);
+      // Fall back to original text so the UI doesn't break...
       uniqueToFetch.forEach((t) => {
         targetStore[t] = t;
       });
+      // ...but still let the caller know, so it can show something to
+      // the user instead of the page just silently staying in English.
+      if (onError) onError(message);
     }
   }
   return targetStore;
@@ -102,7 +106,7 @@ export function isApplyingTranslation() {
 // is 'en'. Safe to call directly from any language to any other
 // language — it always translates from the stored original English
 // text, never from whatever is currently on screen.
-export async function translatePage(target, root = document.getElementById('root') || document.body) {
+export async function translatePage(target, root = document.getElementById('root') || document.body, onError) {
   if (!root) return;
 
   if (target === 'en') {
@@ -118,7 +122,7 @@ export async function translatePage(target, root = document.getElementById('root
   const nodeTexts = textNodes.map((n) => originalTextMap.get(n) || n.nodeValue);
   const placeholderTexts = placeholderEls.map((el) => el.dataset.origPlaceholder || el.placeholder);
 
-  const store = await resolveTranslations([...nodeTexts, ...placeholderTexts], target);
+  const store = await resolveTranslations([...nodeTexts, ...placeholderTexts], target, onError);
 
   applyingMutation = true;
   try {
