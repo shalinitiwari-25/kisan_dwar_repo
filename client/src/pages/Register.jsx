@@ -1,9 +1,10 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { register } from "../services/api";
 import { saveToken, saveRole, saveUser } from "../utils/auth";
 import logo from "../assets/logo.png";
 import LanguageToggle from "../components/LanguageToggle";
+import { VILLAGE_LIST, STATE_LIST } from "../utils/distanceTable";
 
 const ROLE_HOME = {
   farmer: "/farmer",
@@ -24,6 +25,9 @@ function Register() {
     aadhaar: "",
     phone: "",
     password: "",
+    village: "",
+    district: "",
+    state: "",
   });
 
   // Step 2: OTP
@@ -36,7 +40,17 @@ function Register() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "village") {
+      // Auto-fill district when village is picked
+      const found = VILLAGE_LIST.find((v) => v.label === value);
+      setForm((prev) => ({ ...prev, village: value, district: found?.district || "" }));
+    } else if (name === "role") {
+      // Clear address fields when switching roles to avoid stale data
+      setForm((prev) => ({ ...prev, role: value, village: "", district: "", state: "" }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
     setError("");
   };
 
@@ -52,6 +66,12 @@ function Register() {
       return setError("Phone number must be exactly 10 digits.");
     if (form.password.length < 6)
       return setError("Password must be at least 6 characters.");
+
+    // Role-specific address validation
+    if ((form.role === "farmer" || form.role === "officer") && !form.village)
+      return setError("Please select your village/area.");
+    if (form.role === "government" && !form.state)
+      return setError("Please select your state.");
 
     // Mock OTP sending
     setOtpSent(true);
@@ -194,6 +214,50 @@ function Register() {
                 required
               />
             </div>
+
+            {/* ── Address fields: conditional on role ── */}
+            {(form.role === "farmer" || form.role === "officer") && (
+              <div className="form-group">
+                <label className="form-label">Village / Area <span className="required">*</span></label>
+                <select
+                  name="village"
+                  className="form-control"
+                  value={form.village}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select your village</option>
+                  {VILLAGE_LIST.map((v) => (
+                    <option key={v.label} value={v.label}>
+                      {v.label} ({v.district})
+                    </option>
+                  ))}
+                </select>
+                {form.district && (
+                  <div style={{ marginTop: "6px", fontSize: "12px", color: "var(--gray-500)", display: "flex", alignItems: "center", gap: "4px" }}>
+                    📍 District auto-filled: <strong style={{ color: "var(--green-700)" }}>{form.district}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {form.role === "government" && (
+              <div className="form-group">
+                <label className="form-label">State <span className="required">*</span></label>
+                <select
+                  name="state"
+                  className="form-control"
+                  value={form.state}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select your state</option>
+                  {STATE_LIST.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button type="submit" className="btn btn-primary btn-lg" style={{ width: "100%" }}>
               Send OTP →

@@ -134,4 +134,21 @@ router.patch('/:id/status', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+// PATCH /:id/confirm — farmer confirms they are on their way
+router.patch('/:id/confirm', async (req, res) => {
+  try {
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      { confirmed: true },
+      { new: true }
+    );
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

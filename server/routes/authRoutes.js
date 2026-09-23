@@ -41,6 +41,9 @@ router.post('/login', async (req, res) => {
         role: user.role,
         phone: user.phone || '',
         aadhaar: user.aadhaar || '',
+        village: user.village || '',
+        district: user.district || '',
+        state: user.state || '',
       },
     });
   } catch (error) {
@@ -49,11 +52,11 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/register
-// Body: { name, role, aadhaar, phone, password }
+// Body: { name, role, aadhaar, phone, password, village?, district?, state? }
 // For demo: OTP verification is handled on the front-end before this is called.
 router.post('/register', async (req, res) => {
   try {
-    const { name, role, aadhaar, phone, password } = req.body;
+    const { name, role, aadhaar, phone, password, village, district, state } = req.body;
 
     if (!name || !role || !aadhaar || !phone || !password) {
       return res.status(400).json({ message: 'All fields are required.' });
@@ -79,6 +82,9 @@ router.post('/register', async (req, res) => {
       role,
       phone,
       aadhaar,
+      village: village || '',
+      district: district || '',
+      state: state || '',
     });
 
     const token = jwt.sign(
@@ -95,6 +101,9 @@ router.post('/register', async (req, res) => {
         role: user.role,
         phone: user.phone,
         aadhaar: user.aadhaar,
+        village: user.village,
+        district: user.district,
+        state: user.state,
       },
     });
   } catch (error) {

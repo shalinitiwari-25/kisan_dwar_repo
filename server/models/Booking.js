@@ -29,6 +29,10 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     enum: ['booked', 'arrived', 'processed', 'no-show', 'cancelled'],
     default: 'booked'
+  },
+  confirmed: {
+    type: Boolean,
+    default: false   // farmer taps "I'm on my way" from queue screen
   }
 }, { timestamps: true });
 

@@ -23,6 +23,7 @@ export const getBookingsByCentre = (centreId) => API.get(`/booking/${centreId}`)
 export const getBookingsByFarmer = (aadhaar) => API.get(`/booking/farmer/${aadhaar}`);
 export const getBookingById = (id) => API.get(`/booking/single/${id}`);
 export const updateBookingStatus = (id, status) => API.patch(`/booking/${id}/status`, { status });
+export const confirmArrival = (id) => API.patch(`/booking/${id}/confirm`);
 
 // ── Payment ──────────────────────────────────────────────
 export const createPayment = (data) => API.post('/payment', data);

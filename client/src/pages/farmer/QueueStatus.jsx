@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import QueueTable from '../../components/QueueTable';
-import { getBookingsByCentre, updateBookingStatus } from '../../services/api';
+import { getBookingsByCentre, updateBookingStatus, confirmArrival } from '../../services/api';
 
 function getLastBooking() {
   try {
@@ -16,6 +16,8 @@ function QueueStatus() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [alreadyConfirmed, setAlreadyConfirmed] = useState(!!lastBooking?.confirmed);
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
@@ -89,6 +91,24 @@ function QueueStatus() {
     }
   };
 
+  const handleConfirm = async () => {
+    if (!lastBooking?.id || alreadyConfirmed) return;
+    setConfirming(true);
+
+    // Optimistic update — mark as confirmed in localStorage immediately
+    // so the demo works even before the new server endpoint is deployed.
+    const updated = { ...lastBooking, confirmed: true };
+    localStorage.setItem('kd_lastBooking', JSON.stringify(updated));
+    setAlreadyConfirmed(true);
+    setConfirming(false);
+
+    // Fire server call in the background (non-blocking)
+    // Once the updated server is deployed this will also persist server-side.
+    confirmArrival(lastBooking.id).catch(() => {
+      // Server not yet deployed — silently ignore; local state is already updated.
+    });
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -127,6 +147,49 @@ function QueueStatus() {
       <div style={{ background: 'var(--green-50)', border: '1.5px solid var(--green-200)', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', fontSize: '14px', fontWeight: 600, color: 'var(--green-800)' }}>
         {statusMsg}
       </div>
+
+      {/* ── Arrival Confirmation Button ── */}
+      {myPosition && myPosition <= 5 && (
+        <div style={{
+          background: alreadyConfirmed ? '#f0fdf4' : 'linear-gradient(135deg, #fff7ed, #ffedd5)',
+          border: `1.5px solid ${alreadyConfirmed ? 'var(--green-300)' : 'var(--orange-200)'}`,
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: alreadyConfirmed ? 'var(--green-800)' : 'var(--orange-800)', marginBottom: '2px' }}>
+              {alreadyConfirmed ? '✅ You\'ve confirmed your arrival!' : '🔔 Your slot is approaching!'}
+            </div>
+            <div style={{ fontSize: '13px', color: alreadyConfirmed ? 'var(--green-700)' : 'var(--gray-600)' }}>
+              {alreadyConfirmed
+                ? 'Safe travels — head to the Mandi gate now.'
+                : `You are #${myPosition} in queue. Please confirm you are on your way.`}
+            </div>
+          </div>
+          {!alreadyConfirmed && (
+            <button
+              className="btn btn-primary"
+              onClick={handleConfirm}
+              disabled={confirming}
+              style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              {confirming ? '⏳ Confirming…' : '✅ I\'m On My Way'}
+            </button>
+          )}
+          {alreadyConfirmed && (
+            <span className="badge badge-green" style={{ flexShrink: 0 }}>
+              <span className="badge-dot"></span>
+              Confirmed
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="grid-2">
         <div className="card">

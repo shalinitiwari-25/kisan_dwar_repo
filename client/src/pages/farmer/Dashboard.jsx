@@ -5,6 +5,7 @@ import StatCard from '../../components/StatCard';
 import { getCentre, getBookingsByCentre } from '../../services/api';
 import { getUser } from '../../utils/auth';
 import farmerHero from '../../assets/farmer-hero.png';
+import { getDistance } from '../../utils/distanceTable';
 
 const CENTRE_MAP = {
   'C001': 'Karnal Mandi',
@@ -109,7 +110,12 @@ function Dashboard() {
             <div className="ai-card-pills">
               <div className="ai-pill">⏱️ Gate Wait ~{Math.max(ahead * 3, 5)} mins</div>
               <div className="ai-pill">📍 Queue Position #{queuePosition ?? '—'}</div>
-              <div className="ai-pill">🚛 Route Clear</div>
+              {(() => {
+                const dist = getDistance(user.village, lastBooking.centreId);
+                return dist !== null
+                  ? <div className="ai-pill">🛣️ ~{dist} km to Mandi</div>
+                  : <div className="ai-pill">🚛 Route Clear</div>;
+              })()}
             </div>
             <div style={{ marginTop: '14px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
               Calculated from queue position #{queuePosition ?? '—'}, {ahead} farmers ahead, and average processing time per token
@@ -160,6 +166,11 @@ function Dashboard() {
                 <div className="booking-detail-value">{lastBooking.slot}</div>
               </div>
             </div>
+            {lastBooking.confirmed && (
+              <div style={{ marginTop: '12px', background: '#f0fdf4', border: '1px solid var(--green-200)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--green-700)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                ✅ You've confirmed your arrival — safe travels!
+              </div>
+            )}
             <Link to="/farmer/queue" className="btn btn-outline" style={{ marginTop: '14px', width: '100%', justifyContent: 'center' }}>
               Track live queue →
             </Link>
@@ -283,8 +294,10 @@ function Dashboard() {
                 ['Farmer ID', 'KP-2025-HR-00429'],
                 ['Aadhaar', user.aadhaar ? `XXXX XXXX ${user.aadhaar.slice(-4)}` : 'XXXX XXXX XXXX'],
                 ['Phone', user.phone ? `+91-${user.phone.slice(0,4)}XXXXX${user.phone.slice(-1)}` : 'Not set'],
-                ['State', 'Haryana'],
-                ['Address', user.address || 'Village Dhanora, Karnal, Haryana'],
+                ['State', user.state || 'Haryana'],
+                ['Address', user.village && user.district
+                  ? `${user.village}, ${user.district}, Haryana`
+                  : user.address || 'Village Dhanora, Karnal, Haryana'],
                 ['Bank A/C', user.bankAccount || '****4321 (Punjab National Bank)'],
               ].map(([label, val]) => (
                 <div key={label} style={{ background: 'rgba(255,255,255,0.6)', borderRadius: '8px', padding: '8px 12px' }}>
