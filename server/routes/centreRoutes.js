@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Centre = require('../models/Centre');
 const { notifyDegradation, notifyPausedAndRebook } = require('../utils/notify');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 // GET all centres (officer centre-switcher, government dashboards)
 router.get('/', async (req, res) => {
@@ -31,8 +32,14 @@ router.get('/:id', async (req, res) => {
 // change means farmers waiting on a booking here would be affected
 // (delay, shortage, or the centre pausing intake for the day) — fires
 // off SMS + website alerts to every farmer with an active booking here.
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, requireRole('officer', 'government'), async (req, res) => {
   try {
+    // An officer can only control the centre(s) a government admin has
+    // assigned them to — enforced here, not just hidden in the UI.
+    if (req.user.role === 'officer' && !req.user.assignedCentres.includes(req.params.id)) {
+      return res.status(403).json({ message: 'You are not assigned to this centre.' });
+    }
+
     const { status, yardCapacityUsed, gunnyBagsAvailable, trucksLiftingToday } = req.body;
     const update = {};
     if (status !== undefined) update.status = status;

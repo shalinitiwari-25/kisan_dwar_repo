@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from '../utils/auth';
 
 // Always talk to the deployed Render backend (not localhost).
 // The trailing "/api" here is required — it was missing before, which
@@ -9,6 +10,17 @@ import axios from 'axios';
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'https://kisan-dwar-backend.onrender.com/api',
   timeout: 8000,
+});
+
+// Attach the logged-in user's JWT to every request. This is what lets the
+// backend actually enforce "who is allowed to do this" (officer approvals,
+// centre assignment, KPP verification) instead of trusting the frontend.
+API.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 
@@ -46,5 +58,23 @@ export const getNotifications = (aadhaar) => API.get(`/notifications/farmer/${aa
 // ── Language preference (persisted so SMS alerts match it) ─
 export const updateLanguagePref = (aadhaar, preferredLanguage) =>
   API.patch(`/auth/language/${aadhaar}`, { preferredLanguage });
+
+// ── Officer/Government approval workflow (Government only) ─
+export const getPendingOfficers = () => API.get('/admin/pending-officers');
+export const getOfficers = () => API.get('/admin/officers');
+export const approveOfficer = (userId, assignedCentres) =>
+  API.patch(`/admin/approve/${userId}`, { assignedCentres });
+export const rejectOfficer = (userId, reason) =>
+  API.patch(`/admin/reject/${userId}`, { reason });
+export const reassignOfficerCentres = (userId, assignedCentres) =>
+  API.patch(`/admin/officers/${userId}/centres`, { assignedCentres });
+
+// ── Farmer Registry — Kisan Pehchan Patra verification ─────
+export const searchFarmers = (search) => API.get('/admin/farmers', { params: { search } });
+export const verifyFarmerKpp = (userId, verified) =>
+  API.patch(`/admin/farmers/${userId}/verify-kpp`, { verified });
+
+// ── Audit / activity log ────────────────────────────────────
+export const getAuditLog = () => API.get('/admin/audit-log');
 
 export default API;

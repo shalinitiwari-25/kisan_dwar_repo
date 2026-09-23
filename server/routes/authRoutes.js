@@ -3,10 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-
-// Falls back to a dev secret so the demo works even if JWT_SECRET isn't
-// set in .env — set a real one in production.
-const JWT_SECRET = process.env.JWT_SECRET || 'kisan_dwar_dev_secret_change_in_production';
+const { JWT_SECRET } = require('../middleware/auth');
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -27,6 +24,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid phone number or password.' });
     }
 
+    // Officer/Government accounts can't log in until a Government user
+    // has approved them (and, for officers, assigned a centre).
+    if (user.status === 'pending') {
+      return res.status(403).json({
+        message: 'Your account is awaiting government approval. Please check back later.',
+      });
+    }
+    if (user.status === 'rejected') {
+      return res.status(403).json({
+        message: `Your registration was rejected${user.rejectionReason ? `: ${user.rejectionReason}` : '.'} Contact your district Mandi office.`,
+      });
+    }
+
     const token = jwt.sign(
       { id: user._id, role: user.role },
       JWT_SECRET,
@@ -45,6 +55,8 @@ router.post('/login', async (req, res) => {
         district: user.district || '',
         state: user.state || '',
         preferredLanguage: user.preferredLanguage || 'en',
+        assignedCentres: user.assignedCentres || [],
+        kppVerified: user.kppVerified || false,
       },
     });
   } catch (error) {
@@ -75,6 +87,12 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ message: 'An account with this phone number already exists. Please login.' });
     }
 
+    // Farmers are active immediately. Officer & Government registrations
+    // need a Government user to approve them (and, for officers, assign
+    // a centre) before the account can log in at all — see
+    // adminRoutes.js `/approve/:userId`.
+    const needsApproval = role === 'officer' || role === 'government';
+
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       name: name.trim(),
@@ -86,7 +104,17 @@ router.post('/register', async (req, res) => {
       village: village || '',
       district: district || '',
       state: state || '',
+      status: needsApproval ? 'pending' : 'active',
     });
+
+    if (needsApproval) {
+      return res.status(201).json({
+        pending: true,
+        message: role === 'officer'
+          ? 'Your officer account has been submitted. A government admin must verify your details and assign you to a centre before you can log in.'
+          : 'Your government account has been submitted for approval by an existing government admin before you can log in.',
+      });
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
@@ -106,6 +134,8 @@ router.post('/register', async (req, res) => {
         district: user.district,
         state: user.state,
         preferredLanguage: user.preferredLanguage || 'en',
+        assignedCentres: user.assignedCentres || [],
+        kppVerified: user.kppVerified || false,
       },
     });
   } catch (error) {
