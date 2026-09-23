@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Centre = require('../models/Centre');
+const { notifyDegradation, notifyPausedAndRebook } = require('../utils/notify');
 
 // GET all centres (officer centre-switcher, government dashboards)
 router.get('/', async (req, res) => {
@@ -26,6 +27,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT update centre status / capacity
+// After applying the update, compares before/after state and — if this
+// change means farmers waiting on a booking here would be affected
+// (delay, shortage, or the centre pausing intake for the day) — fires
+// off SMS + website alerts to every farmer with an active booking here.
 router.put('/:id', async (req, res) => {
   try {
     const { status, yardCapacityUsed, gunnyBagsAvailable, trucksLiftingToday } = req.body;
@@ -35,17 +40,52 @@ router.put('/:id', async (req, res) => {
     if (gunnyBagsAvailable !== undefined) update.gunnyBagsAvailable = gunnyBagsAvailable;
     if (trucksLiftingToday !== undefined) update.trucksLiftingToday = trucksLiftingToday;
 
+    const before = await Centre.findOne({ centreId: req.params.id });
+    if (!before) {
+      return res.status(404).json({ message: 'Centre not found' });
+    }
+
     const centre = await Centre.findOneAndUpdate(
       { centreId: req.params.id },
       update,
       { new: true }
     );
-    if (!centre) {
-      return res.status(404).json({ message: 'Centre not found' });
-    }
+
     res.json(centre);
+
+    // ── Fire farmer notifications AFTER responding, so the officer's
+    //    action never waits on SMS/translation calls. Failures here are
+    //    logged only — they must never affect the centre update itself. ──
+    setImmediate(async () => {
+      try {
+        const justPaused = before.status !== 'PAUSED' && centre.status === 'PAUSED';
+        if (justPaused) {
+          await notifyPausedAndRebook(centre);
+          return; // booking-level cancellation already covers this event
+        }
+
+        const justRestricted = before.status === 'OPEN' && centre.status === 'RESTRICTED';
+        const crossedCapacityThreshold = before.yardCapacityUsed < 85 && centre.yardCapacityUsed >= 85;
+        if (justRestricted || crossedCapacityThreshold) {
+          await notifyDegradation(centre, 'DELAY');
+        }
+
+        const bagsJustRanOut = before.gunnyBagsAvailable === true && centre.gunnyBagsAvailable === false;
+        if (bagsJustRanOut) {
+          await notifyDegradation(centre, 'SHORTAGE', { resource: 'gunny bags' });
+        }
+
+        const trucksJustHalted = before.trucksLiftingToday === true && centre.trucksLiftingToday === false;
+        if (trucksJustHalted) {
+          await notifyDegradation(centre, 'SHORTAGE', { resource: 'lifting trucks' });
+        }
+      } catch (err) {
+        console.error('[centreRoutes] notification dispatch failed:', err.message);
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
+
 module.exports = router;

@@ -2,16 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import StatCard from '../../components/StatCard';
-import { getCentre, getBookingsByCentre } from '../../services/api';
+import { getCentre, getBookingsByCentre, getNotifications } from '../../services/api';
 import { getUser } from '../../utils/auth';
 import farmerHero from '../../assets/farmer-hero.png';
 import { getDistance } from '../../utils/distanceTable';
-
-const CENTRE_MAP = {
-  'C001': 'Karnal Mandi',
-  'C002': 'Panipat Mandi',
-  'C003': 'Kurukshetra Mandi',
-};
 
 function getLastBooking() {
   try {
@@ -21,15 +15,34 @@ function getLastBooking() {
   }
 }
 
+const ALERT_META = {
+  DELAY:    { icon: '⏳', tone: 'orange', label: 'Delay' },
+  SHORTAGE: { icon: '⚠️', tone: 'orange', label: 'Shortage' },
+  REBOOKED: { icon: '🔄', tone: 'red',    label: 'Booking Moved' },
+};
+
+function timeAgo(dateStr) {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  return `${Math.round(hrs / 24)} day ago`;
+}
+
 function Dashboard() {
   const user = getUser();
   const farmerName = user.name || 'Farmer';
-  const lastBooking = getLastBooking();
+
+  const [lastBooking, setLastBooking] = useState(getLastBooking());
   const [centre, setCentre] = useState(null);
   const [queuePosition, setQueuePosition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [rebookNotice, setRebookNotice] = useState(null);
 
   // Build QR value from saved booking (for gatekeeper scan)
   const qrValue = lastBooking ? JSON.stringify({
@@ -67,6 +80,55 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastBooking?.centreId]);
 
+  // ── Mandi Alerts: poll for new SMS-mirrored notifications, and detect
+  //    if this booking got auto-cancelled + moved to a new centre/token ──
+  useEffect(() => {
+    if (!user.aadhaar) return;
+    let cancelled = false;
+
+    const poll = () => {
+      getNotifications(user.aadhaar)
+        .then(res => {
+          if (cancelled) return;
+          setNotifications(res.data);
+
+          // If our active booking was just cancelled by an officer pausing
+          // the centre, adopt the auto-assigned replacement booking.
+          if (lastBooking?.id) {
+            const rebook = res.data.find(
+              n => n.type === 'REBOOKED' && n.meta?.oldBookingId === lastBooking.id && n.meta?.newBookingId
+            );
+            if (rebook) {
+              const newRecord = {
+                id: rebook.meta.newBookingId,
+                tokenId: rebook.meta.newTokenId,
+                tokenNo: rebook.meta.newTokenNo,
+                centreId: rebook.meta.newCentreId,
+                centre: rebook.meta.newCentreName,
+                crop: lastBooking.crop,
+                quantity: lastBooking.quantity,
+                aadhaar: lastBooking.aadhaar,
+                slot: lastBooking.slot,
+              };
+              localStorage.setItem('kd_lastBooking', JSON.stringify(newRecord));
+              setRebookNotice({
+                oldTokenId: rebook.meta.oldTokenId,
+                newTokenId: rebook.meta.newTokenId,
+                newCentreName: rebook.meta.newCentreName,
+              });
+              setLastBooking(newRecord);
+            }
+          }
+        })
+        .catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, 12000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.aadhaar, lastBooking?.id]);
+
   const ahead = queuePosition ? queuePosition - 1 : 0;
   const waitMin = ahead * 7;
   const departTime = new Date(Date.now() - waitMin * 60000 + 30 * 60000);
@@ -97,6 +159,22 @@ function Dashboard() {
       {error && (
         <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '13px' }}>
           Couldn't reach the server: {error}
+        </div>
+      )}
+
+      {/* Auto-rebooking banner — shown once right after it happens */}
+      {rebookNotice && (
+        <div style={{ background: '#fff7ed', border: '1.5px solid var(--orange-300)', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <div style={{ fontSize: '22px' }}>🔄</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--orange-700)' }}>Your booking was moved</div>
+            <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginTop: '2px' }}>
+              Your Mandi centre stopped accepting crops today, so token {rebookNotice.oldTokenId} was cancelled and
+              you were automatically given a new slot — token {rebookNotice.newTokenId} at {rebookNotice.newCentreName}.
+              An SMS with the details has been sent to your phone.
+            </div>
+          </div>
+          <button className="btn btn-outline btn-sm" onClick={() => setRebookNotice(null)}>Dismiss</button>
         </div>
       )}
 
@@ -215,6 +293,41 @@ function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* ── Mandi Alerts (mirrors the SMS sent to the farmer's phone) ──── */}
+      {notifications.length > 0 && (
+        <div className="card" style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>📩 Mandi Alerts</div>
+            <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>Also sent by SMS</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+            {notifications.slice(0, 6).map((n) => {
+              const meta = ALERT_META[n.type] || { icon: '📩', tone: 'gray', label: n.type };
+              return (
+                <div
+                  key={n._id}
+                  style={{
+                    display: 'flex', gap: '10px', alignItems: 'flex-start',
+                    background: meta.tone === 'red' ? '#fff1f2' : '#fff7ed',
+                    border: `1px solid ${meta.tone === 'red' ? '#fecaca' : 'var(--orange-200)'}`,
+                    borderRadius: '10px', padding: '10px 14px',
+                  }}
+                >
+                  <div style={{ fontSize: '18px' }}>{meta.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: meta.tone === 'red' ? '#b91c1c' : 'var(--orange-700)' }}>
+                      {n.titleEn}
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginTop: '2px' }}>{n.messageEn}</div>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--gray-400)', whiteSpace: 'nowrap' }}>{timeAgo(n.createdAt)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── My QR Token ─────────────────────────────────────────────────── */}
       {qrValue && (

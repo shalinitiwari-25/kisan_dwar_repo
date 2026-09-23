@@ -40,4 +40,11 @@ export const register = (data) => API.post('/auth/register', data);
 // ── Translation (English <-> Hindi) ───────────────────────
 export const translateTexts = (texts, target) => API.post('/translate', { texts, target });
 
+// ── Notifications (Mandi delay/shortage/rebooking alerts) ─
+export const getNotifications = (aadhaar) => API.get(`/notifications/farmer/${aadhaar}`);
+
+// ── Language preference (persisted so SMS alerts match it) ─
+export const updateLanguagePref = (aadhaar, preferredLanguage) =>
+  API.patch(`/auth/language/${aadhaar}`, { preferredLanguage });
+
 export default API;
