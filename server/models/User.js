@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema({
   aadhaar: { type: String, default: '' },
   address: { type: String, default: '' },
   bankAccount: { type: String, default: '' },
+  // Role-specific location fields
+  village: { type: String, default: '' },   // farmer & officer
+  district: { type: String, default: '' },  // farmer & officer
+  state: { type: String, default: '' },     // government (and optionally pre-filled for others)
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

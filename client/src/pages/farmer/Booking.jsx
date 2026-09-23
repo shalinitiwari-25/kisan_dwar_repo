@@ -2,6 +2,7 @@ import { useState } from 'react';
 import QRModal from '../../components/QRModal';
 import { createBooking, getCentre, updateBookingStatus } from '../../services/api';
 import { getUser } from '../../utils/auth';
+import { getDistance } from '../../utils/distanceTable';
 
 const CENTRE_MAP = {
   'C001': 'Karnal Mandi',
@@ -10,11 +11,11 @@ const CENTRE_MAP = {
 };
 
 const slots = [
-  { label: '7 AM – 9 AM',      tag: 'Full',        status: 'full'   },
-  { label: '9 AM – 11 AM',     tag: '',            status: 'open'   },
-  { label: '11 AM – 1 PM',     tag: 'Recommended', status: 'recommended' },
-  { label: '1 PM – 3 PM',      tag: '',            status: 'open'   },
-  { label: '3 PM – 5 PM',      tag: '',            status: 'open'   },
+  { label: '7 AM – 9 AM',  tag: 'Full', status: 'full' },
+  { label: '9 AM – 11 AM', tag: '',     status: 'open' },
+  { label: '11 AM – 1 PM', tag: '',     status: 'open' },
+  { label: '1 PM – 3 PM',  tag: '',     status: 'open' },
+  { label: '3 PM – 5 PM',  tag: '',     status: 'open' },
 ];
 
 function Booking() {
@@ -27,7 +28,7 @@ function Booking() {
     centreId: 'C001',
     date: '',
   });
-  const [selectedSlot, setSelectedSlot] = useState(2); // default recommended
+  const [selectedSlot, setSelectedSlot] = useState(1); // default first open slot
   const [aadhaarVerified, setAadhaarVerified] = useState(!!currentUser.aadhaar);
   const [loading, setLoading] = useState(false);
   const [centreStatus, setCentreStatus] = useState('OPEN');
@@ -211,9 +212,17 @@ function Booking() {
               <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--green-700)', marginBottom: '4px' }}>
                 🔄 Nearest open centre found
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '10px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '6px' }}>
                 {suggestedCentre.name} is open — {suggestedCentre.yardCapacityUsed}% yard capacity used.
               </div>
+              {(() => {
+                const dist = getDistance(currentUser.village, suggestedCentre.centreId);
+                return dist !== null ? (
+                  <div style={{ fontSize: '12px', color: 'var(--green-700)', fontWeight: 500, marginBottom: '10px' }}>
+                    📍 ~{dist} km from your village
+                  </div>
+                ) : <div style={{ marginBottom: '10px' }} />;
+              })()}
               <button type="button" className="btn btn-primary btn-sm" onClick={switchToSuggested}>
                 Switch &amp; book here instead →
               </button>
@@ -294,6 +303,14 @@ function Booking() {
                   <option value="C002">Panipat Mandi</option>
                   <option value="C003">Kurukshetra Mandi</option>
                 </select>
+                {(() => {
+                  const dist = getDistance(currentUser.village, form.centreId);
+                  return dist !== null ? (
+                    <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--green-700)', fontWeight: 500 }}>
+                      📍 ~{dist} km from your village ({currentUser.village})
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               <div className="form-group">
@@ -320,7 +337,6 @@ function Booking() {
                     type="button"
                     className={`slot-pill ${
                       slot.status === 'full' ? 'full' :
-                      slot.status === 'recommended' && selectedSlot !== i ? 'recommended' :
                       selectedSlot === i ? 'selected' : ''
                     }`}
                     onClick={() => slot.status !== 'full' && setSelectedSlot(i)}
@@ -328,7 +344,7 @@ function Booking() {
                   >
                     {slot.label}
                     {slot.tag && (
-                      <div className="slot-tag">{slot.tag === 'Full' ? '🔴 Full' : '⭐ ' + slot.tag}</div>
+                      <div className="slot-tag">🔴 Full</div>
                     )}
                   </button>
                 ))}
