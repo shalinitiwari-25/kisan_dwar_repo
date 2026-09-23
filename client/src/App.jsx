@@ -1,9 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 
 import Navbar  from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
+import FarmerChatbot from './components/FarmerChatbot';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { getRole } from './utils/auth';
@@ -34,6 +35,9 @@ const ROLE_HOME = {
 };
 
 function AppShell() {
+  const location = useLocation();
+  const isFarmer = location.pathname.startsWith('/farmer');
+
   return (
     <>
       <Navbar />
@@ -90,6 +94,9 @@ function AppShell() {
           </Routes>
         </main>
       </div>
+
+      {/* KisanBot — floating chatbot, farmer pages only */}
+      {isFarmer && <FarmerChatbot />}
     </>
   );
 }
