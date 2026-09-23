@@ -44,6 +44,7 @@ router.post('/login', async (req, res) => {
         village: user.village || '',
         district: user.district || '',
         state: user.state || '',
+        preferredLanguage: user.preferredLanguage || 'en',
       },
     });
   } catch (error) {
@@ -104,8 +105,34 @@ router.post('/register', async (req, res) => {
         village: user.village,
         district: user.district,
         state: user.state,
+        preferredLanguage: user.preferredLanguage || 'en',
       },
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// PATCH /api/auth/language/:aadhaar
+// Persists the farmer's chosen website language so SMS alerts (Mandi
+// delay/shortage/rebooking) can be sent in that same language.
+router.patch('/language/:aadhaar', async (req, res) => {
+  try {
+    const { preferredLanguage } = req.body;
+    if (!preferredLanguage || typeof preferredLanguage !== 'string') {
+      return res.status(400).json({ message: 'preferredLanguage is required.' });
+    }
+
+    const user = await User.findOneAndUpdate(
+      { aadhaar: req.params.aadhaar },
+      { preferredLanguage },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.json({ preferredLanguage: user.preferredLanguage });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

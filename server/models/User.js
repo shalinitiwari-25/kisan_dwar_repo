@@ -30,6 +30,9 @@ const userSchema = new mongoose.Schema({
   village: { type: String, default: '' },   // farmer & officer
   district: { type: String, default: '' },  // farmer & officer
   state: { type: String, default: '' },     // government (and optionally pre-filled for others)
+  // Language the farmer has chosen on the website — used to send SMS
+  // alerts (Mandi delay/shortage/rebooking) in their own language.
+  preferredLanguage: { type: String, default: 'en' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

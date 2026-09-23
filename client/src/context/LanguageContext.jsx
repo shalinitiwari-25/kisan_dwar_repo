@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { translatePage, observePageForTranslation } from '../utils/pageTranslator';
+import { getUser } from '../utils/auth';
+import { updateLanguagePref } from '../services/api';
 
 const LanguageContext = createContext(null);
 
@@ -39,6 +41,17 @@ export function LanguageProvider({ children }) {
     document.documentElement.lang = lang;
     setTranslateError(null);
     translatePage(lang, undefined, (message) => setTranslateError(message));
+
+    // If a farmer is logged in, persist their language choice server-side
+    // too — it's what decides which language their Mandi SMS alerts
+    // (delay / shortage / auto-rebooking) are sent in.
+    const user = getUser();
+    if (user?.aadhaar) {
+      updateLanguagePref(user.aadhaar, lang).catch(() => {
+        // Non-critical — the site itself still works in the chosen
+        // language even if this background sync fails.
+      });
+    }
   }, [lang]);
 
   return (

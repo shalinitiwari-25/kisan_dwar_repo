@@ -13,6 +13,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const procurementRoutes = require('./routes/procurementRoutes');
 const authRoutes = require('./routes/authRoutes');
 const translateRoutes = require('./routes/translateRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Connect to MongoDB, then make sure at least the default centres and demo
 // login accounts exist. This prevents "Centre not found" / login failures
@@ -70,6 +71,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/procurement', procurementRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/notifications', notificationRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
