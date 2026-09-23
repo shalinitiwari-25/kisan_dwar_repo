@@ -11,11 +11,14 @@ const officerLinks = [
   { to: '/officer',          icon: '📊', label: 'Officer Dashboard' },
   { to: '/officer/queue',    icon: '📋', label: 'Queue Manager' },
   { to: '/officer/capacity', icon: '🔍', label: 'Gate Verification' },
+  { to: '/officer/farmers',  icon: '🪪', label: 'Farmer Registry' },
 ];
 
 const govtLinks = [
-  { to: '/government',         icon: '📈', label: 'Analytics Overview' },
-  { to: '/government/district',icon: '🗺️', label: 'District Monitor' },
+  { to: '/government',           icon: '📈', label: 'Analytics Overview' },
+  { to: '/government/district',  icon: '🗺️', label: 'District Monitor' },
+  { to: '/government/approvals', icon: '✅', label: 'Officer Approvals' },
+  { to: '/government/staff',     icon: '🏢', label: 'Centres & Staff' },
 ];
 
 function Sidebar() {

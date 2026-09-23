@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAllCentres, getBookingsByCentre, updateBookingStatus } from '../../services/api';
+import { getUser } from '../../utils/auth';
 
 const statusColors = {
   booked:    'badge-gray',
@@ -16,7 +17,12 @@ const statusLabels = {
 };
 
 function QueueManager() {
-  const [centreId, setCentreId] = useState(localStorage.getItem('kd_officerCentre') || 'C001');
+  const assignedCentres = getUser().assignedCentres || [];
+  const [centreId, setCentreId] = useState(
+    (assignedCentres.includes(localStorage.getItem('kd_officerCentre')) && localStorage.getItem('kd_officerCentre'))
+      || assignedCentres[0]
+      || ''
+  );
   const [centres, setCentres] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loadingId, setLoadingId] = useState('');
@@ -24,20 +30,34 @@ function QueueManager() {
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
+    if (!centreId) { setLoading(false); return; }
     setLoading(true);
     Promise.all([getAllCentres(), getBookingsByCentre(centreId)])
       .then(([centresRes, bookingsRes]) => {
-        setCentres(centresRes.data);
+        setCentres(centresRes.data.filter(c => assignedCentres.includes(c.centreId)));
         setBookings(bookingsRes.data.slice().sort((a, b) => a.tokenNo - b.tokenNo));
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err.response?.data?.message || err.message))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centreId]);
 
   useEffect(() => {
-    localStorage.setItem('kd_officerCentre', centreId);
+    if (centreId) localStorage.setItem('kd_officerCentre', centreId);
     load();
   }, [centreId, load]);
+
+  if (assignedCentres.length === 0) {
+    return (
+      <div className="card" style={{ maxWidth: '520px' }}>
+        <div className="card-title">🚫 No Centre Assigned</div>
+        <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+          Your officer account hasn't been assigned to a centre yet. Ask your Government admin to
+          assign you one before you can manage a queue.
+        </p>
+      </div>
+    );
+  }
 
   const handleAction = async (booking, newStatus) => {
     setLoadingId(booking._id + newStatus);
@@ -67,7 +87,7 @@ function QueueManager() {
             value={centreId}
             onChange={(e) => setCentreId(e.target.value)}
           >
-            {(centres.length ? centres : [{ centreId: 'C001', name: 'Karnal Mandi' }, { centreId: 'C002', name: 'Panipat Mandi' }, { centreId: 'C003', name: 'Kurukshetra Mandi' }]).map(c => (
+            {centres.map(c => (
               <option key={c.centreId} value={c.centreId}>{c.name}</option>
             ))}
           </select>

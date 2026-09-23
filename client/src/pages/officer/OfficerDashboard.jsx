@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import StatCard from '../../components/StatCard';
 import { getAllCentres, updateCentreStatus, getBookingsByCentre } from '../../services/api';
+import { getUser } from '../../utils/auth';
 
 function riskFromCapacity(pct) {
   if (pct >= 90) return { label: 'High', color: 'badge-red' };
@@ -9,7 +10,15 @@ function riskFromCapacity(pct) {
 }
 
 function OfficerDashboard() {
-  const [centreId, setCentreId] = useState(localStorage.getItem('kd_officerCentre') || 'C001');
+  // An officer can only ever act on centre(s) a government admin assigned
+  // them to — this comes from their login, and the backend enforces it
+  // again on every write, so this isn't just a UI nicety.
+  const assignedCentres = getUser().assignedCentres || [];
+  const [centreId, setCentreId] = useState(
+    (assignedCentres.includes(localStorage.getItem('kd_officerCentre')) && localStorage.getItem('kd_officerCentre'))
+      || assignedCentres[0]
+      || ''
+  );
   const [centres, setCentres] = useState([]);
   const [centre, setCentre] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -18,22 +27,35 @@ function OfficerDashboard() {
   const [error, setError] = useState('');
 
   const load = () => {
+    if (!centreId) { setLoading(false); return; }
     setLoading(true);
     Promise.all([getAllCentres(), getBookingsByCentre(centreId)])
       .then(([centresRes, bookingsRes]) => {
-        setCentres(centresRes.data);
+        setCentres(centresRes.data.filter(c => assignedCentres.includes(c.centreId)));
         setCentre(centresRes.data.find(c => c.centreId === centreId) || null);
         setBookings(bookingsRes.data);
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err.response?.data?.message || err.message))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    localStorage.setItem('kd_officerCentre', centreId);
+    if (centreId) localStorage.setItem('kd_officerCentre', centreId);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centreId]);
+
+  if (assignedCentres.length === 0) {
+    return (
+      <div className="card" style={{ maxWidth: '520px' }}>
+        <div className="card-title">🚫 No Centre Assigned</div>
+        <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+          Your officer account hasn't been assigned to a centre yet. Ask your Government admin to
+          assign you one from Centre &amp; Staff Management before you can manage a Mandi.
+        </p>
+      </div>
+    );
+  }
 
   const save = async (updates) => {
     setSaving(true);
@@ -80,7 +102,7 @@ function OfficerDashboard() {
               value={centreId}
               onChange={(e) => setCentreId(e.target.value)}
             >
-              {(centres.length ? centres : [{ centreId: 'C001', name: 'Karnal Mandi' }, { centreId: 'C002', name: 'Panipat Mandi' }, { centreId: 'C003', name: 'Kurukshetra Mandi' }]).map(c => (
+              {centres.map(c => (
                 <option key={c.centreId} value={c.centreId}>{c.name}</option>
               ))}
             </select>

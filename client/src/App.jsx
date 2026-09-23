@@ -18,10 +18,13 @@ import PaymentStatus   from './pages/farmer/PaymentStatus';
 import OfficerDashboard from './pages/officer/OfficerDashboard';
 import QueueManager     from './pages/officer/QueueManager';
 import CapacityControl  from './pages/officer/CapacityControl';
+import FarmerRegistry   from './pages/officer/FarmerRegistry';
 
 // Government
-import AnalyticsOverview from './pages/government/AnalyticsOverview';
-import DistrictMonitor   from './pages/government/DistrictMonitor';
+import AnalyticsOverview       from './pages/government/AnalyticsOverview';
+import DistrictMonitor         from './pages/government/DistrictMonitor';
+import OfficerApprovals        from './pages/government/OfficerApprovals';
+import CentreStaffManagement   from './pages/government/CentreStaffManagement';
 
 // Where an already-logged-in user should land when hitting an unknown path
 const ROLE_HOME = {
@@ -64,6 +67,9 @@ function AppShell() {
             <Route path="/officer/capacity" element={
               <ProtectedRoute allowedRole="officer"><CapacityControl /></ProtectedRoute>
             } />
+            <Route path="/officer/farmers" element={
+              <ProtectedRoute allowedRole="officer"><FarmerRegistry /></ProtectedRoute>
+            } />
 
             {/* Government */}
             <Route path="/government" element={
@@ -71,6 +77,12 @@ function AppShell() {
             } />
             <Route path="/government/district" element={
               <ProtectedRoute allowedRole="government"><DistrictMonitor /></ProtectedRoute>
+            } />
+            <Route path="/government/approvals" element={
+              <ProtectedRoute allowedRole="government"><OfficerApprovals /></ProtectedRoute>
+            } />
+            <Route path="/government/staff" element={
+              <ProtectedRoute allowedRole="government"><CentreStaffManagement /></ProtectedRoute>
             } />
 
             {/* Default — send to the logged-in user's home */}

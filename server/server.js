@@ -14,6 +14,7 @@ const procurementRoutes = require('./routes/procurementRoutes');
 const authRoutes = require('./routes/authRoutes');
 const translateRoutes = require('./routes/translateRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Connect to MongoDB, then make sure at least the default centres and demo
 // login accounts exist. This prevents "Centre not found" / login failures
@@ -36,9 +37,15 @@ connectDB().then(async () => {
     console.log('No users found — auto-seeding demo login accounts...');
     const passwordHash = await bcrypt.hash('password123', 10);
     await User.insertMany([
-      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer', phone: '9876543210', aadhaar: '123456789012', address: 'Village Dhanora, Karnal, Haryana', bankAccount: '****4321 (Punjab National Bank)' },
-      { name: 'Amit Sharma',  email: 'officer@test.com', password: passwordHash, role: 'officer', phone: '9876500001', aadhaar: '000000000001' },
-      { name: 'Priya Gupta',  email: 'govt@test.com',   password: passwordHash, role: 'government', phone: '9876500002', aadhaar: '000000000002' },
+      // Farmers — one KPP-verified, one not, so the Farmer Registry demo has both states
+      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer', phone: '9876543210', aadhaar: '123456789012', address: 'Village Dhanora, Karnal, Haryana', bankAccount: '****4321 (Punjab National Bank)', status: 'active', kppVerified: true, kppVerifiedBy: 'Amit Sharma', kppVerifiedAt: new Date() },
+      { name: 'Suman Devi',   email: '9998887771@kisan.in', password: passwordHash, role: 'farmer', phone: '9998887771', aadhaar: '223456789013', village: 'Dhanora', district: 'Karnal', status: 'active', kppVerified: false },
+      // Officer — already approved & assigned to C001 + C002 (not C003, to demo the restriction)
+      { name: 'Amit Sharma',  email: 'officer@test.com', password: passwordHash, role: 'officer', phone: '9876500001', aadhaar: '000000000001', status: 'active', assignedCentres: ['C001', 'C002'], approvedBy: 'Priya Gupta', approvedAt: new Date() },
+      // Government — the approving authority
+      { name: 'Priya Gupta',  email: 'govt@test.com',   password: passwordHash, role: 'government', phone: '9876500002', aadhaar: '000000000002', status: 'active', state: 'Haryana' },
+      // A second officer sitting pending, so Officer Approvals has something to show immediately
+      { name: 'Suresh Yadav', email: '9998887772@kisan.in', password: passwordHash, role: 'officer', phone: '9998887772', aadhaar: '000000000003', village: 'Panipat City', district: 'Panipat', status: 'pending' },
     ]);
     console.log('Demo accounts created — farmer@test.com / officer@test.com / govt@test.com (password: password123)');
   }
@@ -72,6 +79,7 @@ app.use('/api/procurement', procurementRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/translate', translateRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

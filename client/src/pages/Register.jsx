@@ -37,6 +37,7 @@ function Register() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -90,6 +91,15 @@ function Register() {
     setLoading(true);
     try {
       const res = await register({ ...form });
+
+      // Officer/Government registrations don't get a token back — they're
+      // pending until a Government user approves them.
+      if (res.data.pending) {
+        setPendingMessage(res.data.message);
+        setStep(3);
+        return;
+      }
+
       saveToken(res.data.token);
       saveRole(res.data.user.role);
       saveUser(res.data.user);
@@ -141,10 +151,30 @@ function Register() {
         </div>
 
         <h2 className="login-heading">
-          {step === 1 ? "Create your account" : "Verify OTP"}
+          {step === 1 ? "Create your account" : step === 2 ? "Verify OTP" : "Registration submitted"}
         </h2>
 
         {error && <div className="login-error">{error}</div>}
+
+        {/* ── STEP 3: Pending Government approval (officer / government roles) ── */}
+        {step === 3 && (
+          <div>
+            <div style={{
+              background: "#f0fdf4", border: "1.5px solid var(--green-200)",
+              borderRadius: "10px", padding: "16px", marginBottom: "16px",
+              fontSize: "13px", color: "var(--green-700)", lineHeight: 1.6,
+            }}>
+              ⏳ {pendingMessage}
+            </div>
+            <p style={{ fontSize: "13px", color: "var(--gray-500)", marginBottom: "16px" }}>
+              You'll be able to log in with this phone number and password once a government
+              admin approves your account{form.role === "officer" ? " and assigns you to a centre" : ""}.
+            </p>
+            <Link to="/login" className="btn btn-primary btn-lg" style={{ width: "100%", display: "block", textAlign: "center", textDecoration: "none" }}>
+              ← Back to Login
+            </Link>
+          </div>
+        )}
 
         {/* ── STEP 1: Registration Form ── */}
         {step === 1 && (
