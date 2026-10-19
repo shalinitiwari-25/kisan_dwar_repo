@@ -3,7 +3,7 @@ import logo from '../assets/logo.png';
 import { removeToken, getUser } from '../utils/auth';
 import LanguageToggle from './LanguageToggle';
 
-function Navbar() {
+function Navbar({ onMenuClick }) {
   const navigate = useNavigate();
 
   const user = getUser();
@@ -19,6 +19,7 @@ function Navbar() {
 
   return (
     <nav className="navbar">
+      <button className="navbar-menu-btn" onClick={onMenuClick} aria-label="Open menu">☰</button>
       <div className="navbar-logo">
         <img src={logo} alt="Kisan Dwar Logo" onError={(e) => { e.target.style.display='none'; }} />
         <div className="navbar-logo-text" data-no-translate>

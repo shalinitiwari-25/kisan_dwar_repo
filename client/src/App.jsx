@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
-
+import { useState, useEffect } from 'react';
 import Navbar  from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -38,12 +38,15 @@ function AppShell() {
   const location = useLocation();
   const isFarmer = location.pathname.startsWith('/farmer');
 
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [location.pathname]);
+
   return (
     <>
-      <Navbar />
+      <Navbar onMenuClick={() => setNavOpen(o => !o)} />
 
       <div className="app-layout">
-        <Sidebar />
+        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
 
         <main className="main-content">
           <Routes>

@@ -2003,3 +2003,70 @@ tr.highlighted td {
   box-shadow: none;
   cursor: not-allowed;
 }
+
+/* =============================================
+   MOBILE LAYOUT (phones / small tablets)
+   ============================================= */
+.navbar-menu-btn { display: none; }
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  html, body, #root { overflow-x: hidden; }
+
+  .navbar { padding: 0 12px; gap: 8px; }
+  .navbar-menu-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; flex-shrink: 0;
+    border: 1.5px solid var(--gray-200); background: white;
+    border-radius: 10px; font-size: 20px; line-height: 1; cursor: pointer;
+    color: var(--gray-700);
+  }
+  .navbar-logo { min-width: 0; flex: 1; gap: 8px; }
+  .navbar-logo img { width: 34px; height: 34px; }
+  .navbar-logo-text .brand-tagline { display: none; }
+  .navbar-right { gap: 6px; flex-shrink: 0; }
+  .profile-name { display: none; }
+  .profile-chip { padding: 4px; }
+
+  .sidebar {
+    position: fixed; top: 68px; bottom: 0; left: 0;
+    width: 260px; max-width: 82vw;
+    z-index: 200; overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: 6px 0 24px rgba(0,0,0,0.25); }
+  .sidebar-backdrop {
+    display: block; position: fixed; inset: 68px 0 0 0;
+    background: rgba(0,0,0,0.45); z-index: 150;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  }
+  .sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
+
+  .app-layout { display: block; min-height: calc(100vh - 68px); }
+  .main-content { padding: 14px 12px; min-width: 0; }
+
+  .page-title { font-size: 21px; }
+  .dashboard-hero { min-height: 190px; }
+  .dashboard-hero-content { padding: 18px 16px; }
+  .dashboard-hero-title { font-size: 22px; }
+  .stat-cards-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { min-width: 0; }
+  img, svg, video, canvas { max-width: 100%; }
+}
+
+@media (max-width: 400px) {
+  .stat-cards-grid { grid-template-columns: 1fr; }
+  .main-content { padding: 12px 10px; }
+}
+
+@media (max-width: 480px) {
+  .navbar-logo-text { display: none; }
+  .navbar-logo img { width: 40px; height: 40px; }
+  .navbar-logo { flex: 1; }
+  .lang-select-icon { display: none; }
+  .lang-select-wrap { padding: 3px 8px; }
+  .lang-select { font-size: 12px; max-width: 92px; }
+  .navbar-right .btn-sm { padding: 6px 10px; }
+}

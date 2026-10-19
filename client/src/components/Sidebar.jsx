@@ -21,7 +21,7 @@ const govtLinks = [
   { to: '/government/staff',     icon: '🏢', label: 'Centres & Staff' },
 ];
 
-function Sidebar() {
+function Sidebar({ open = false, onClose = () => {} }) {
   const location = useLocation();
 
   let links = farmerLinks;
@@ -38,8 +38,10 @@ function Sidebar() {
     sectionEmoji = '📊';
   }
 
-  return (
-    <aside className="sidebar">
+    return (
+    <>
+    <div className={`sidebar-backdrop${open ? ' show' : ''}`} onClick={onClose} />
+    <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="sidebar-section-label">{sectionEmoji} {sectionLabel}</div>
       {links.map(link => (
         <NavLink
@@ -47,12 +49,14 @@ function Sidebar() {
           to={link.to}
           end={link.to === '/farmer' || link.to === '/officer' || link.to === '/government'}
           className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+          onClick={onClose}
         >
           <span className="link-icon">{link.icon}</span>
           {link.label}
         </NavLink>
       ))}
     </aside>
+    </>
   );
 }
 

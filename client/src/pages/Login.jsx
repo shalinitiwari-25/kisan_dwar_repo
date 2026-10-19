@@ -36,7 +36,11 @@ function Login() {
       saveUser(res.data.user); // persist name / phone / aadhaar
       navigate(ROLE_HOME[res.data.user.role] || '/farmer', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      if (!navigator.onLine || !err.response) {
+        setError('No internet connection. Please connect and try again. (If you logged in before, open the app again — your saved ticket will still show.)');
+      } else {
+        setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
