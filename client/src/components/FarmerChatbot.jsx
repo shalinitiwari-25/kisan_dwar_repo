@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 /* ─── Demo Q&A Knowledge Base ─────────────────────────────────────── */
 const FAQ = [
@@ -97,6 +98,7 @@ function useSpeechRecognition(onResult) {
 /* ─── Main Chatbot Component ──────────────────────────────────────── */
 export default function FarmerChatbot() {
   const [open, setOpen] = useState(false);
+  const onHome = useLocation().pathname === '/farmer'; // Home has its own "Need Help?" tile
   const [messages, setMessages] = useState([
     {
       from: 'bot',
@@ -107,6 +109,13 @@ export default function FarmerChatbot() {
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+
+  /* Let other screens (e.g. the Help tile on Home) open the bot */
+  useEffect(() => {
+    const openBot = () => setOpen(true);
+    window.addEventListener('kd-open-chatbot', openBot);
+    return () => window.removeEventListener('kd-open-chatbot', openBot);
+  }, []);
 
   /* Auto-scroll to latest message */
   useEffect(() => {
@@ -151,7 +160,7 @@ export default function FarmerChatbot() {
     <>
       {/* ── Floating Action Button ───────────────────────────── */}
       <button
-        className={`chatbot-fab ${open ? 'chatbot-fab--open' : ''}`}
+        className={`chatbot-fab ${open ? 'chatbot-fab--open' : ''}${onHome ? ' chatbot-fab--home' : ''}`}
         onClick={() => setOpen((v) => !v)}
         aria-label="Open KisanBot"
         title="Ask KisanBot"

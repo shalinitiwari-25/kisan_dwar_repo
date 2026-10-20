@@ -19,6 +19,7 @@ function QueueStatus() {
   const [confirming, setConfirming] = useState(false);
   const [alreadyConfirmed, setAlreadyConfirmed] = useState(!!lastBooking?.confirmed);
   const [error, setError] = useState('');
+  const [showMore, setShowMore] = useState(false);
 
   const load = useCallback(() => {
     if (!lastBooking) return;
@@ -77,6 +78,8 @@ function QueueStatus() {
         ? '🟡 Get ready to depart soon.'
         : '🟡 Your turn is today. No action needed yet.';
 
+  const bannerTone = !myPosition || myPosition <= 3 ? 'green' : 'yellow';
+
   const simulateAdvance = async () => {
     const nextInLine = waiting.find(b => b.tokenNo !== lastBooking.tokenNo);
     if (!nextInLine) return;
@@ -110,127 +113,99 @@ function QueueStatus() {
   };
 
   return (
-    <div>
+    <div className="farmer-queue">
       <div className="page-header">
-        <div className="page-title">🔢 Live Queue Status</div>
-        <div className="page-subtitle">Your real-time position at {lastBooking.centre}</div>
+        <div className="page-title">🔢 Live Queue</div>
+        <div className="page-subtitle">{lastBooking.centre}</div>
       </div>
 
       {error && (
-        <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '13px' }}>
+        <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '14px' }}>
           {error}
         </div>
       )}
 
-      {/* Queue Hero */}
-      <div className="queue-hero">
-        <div className="queue-label">Your Queue Position</div>
-        <div className="queue-number">{myPosition ? `#${myPosition}` : '—'}</div>
-        <div className="queue-meta">
-          <div className="queue-meta-item">
-            <div className="queue-meta-value">{ahead}</div>
-            <div className="queue-meta-label">Ahead</div>
+      {/* What to do — icon + words + colour */}
+      <div className={`queue-banner queue-banner--${bannerTone}`} data-speak>
+        {statusMsg}
+      </div>
+
+      {/* Big token + position */}
+      <div className="queue-hero queue-hero--big">
+        <div className="queue-label">Your Token</div>
+        <div className="queue-token-big" data-speak data-no-translate>{lastBooking.tokenId}</div>
+        <div className="queue-pos-row">
+          <div className="queue-pos-box" data-speak>
+            <div className="queue-pos-value">{myPosition ? `#${myPosition}` : '—'}</div>
+            <div className="queue-meta-label">Position</div>
           </div>
-          <div style={{ width: '1px', background: 'rgba(255,255,255,0.2)', height: '40px' }}></div>
-          <div className="queue-meta-item">
-            <div className="queue-meta-value">{waitMin}m</div>
-            <div className="queue-meta-label">Est. Wait</div>
+          <div className="queue-pos-box" data-speak>
+            <div className="queue-pos-value">{ahead}</div>
+            <div className="queue-meta-label">Ahead of you</div>
           </div>
-          <div style={{ width: '1px', background: 'rgba(255,255,255,0.2)', height: '40px' }}></div>
-          <div className="queue-meta-item">
-            <div className="queue-meta-value">{lastBooking.tokenId}</div>
-            <div className="queue-meta-label">Your Token</div>
+          <div className="queue-pos-box" data-speak>
+            <div className="queue-pos-value">{waitMin}<span className="queue-pos-unit"> min</span></div>
+            <div className="queue-meta-label">Wait</div>
           </div>
         </div>
       </div>
 
-      <div style={{ background: 'var(--green-50)', border: '1.5px solid var(--green-200)', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', fontSize: '14px', fontWeight: 600, color: 'var(--green-800)' }}>
-        {statusMsg}
-      </div>
-
-      {/* ── Arrival Confirmation Button ── */}
+      {/* ── Arrival Confirmation ── */}
       {myPosition && myPosition <= 5 && (
-        <div style={{
-          background: alreadyConfirmed ? '#f0fdf4' : 'linear-gradient(135deg, #fff7ed, #ffedd5)',
-          border: `1.5px solid ${alreadyConfirmed ? 'var(--green-300)' : 'var(--orange-200)'}`,
-          borderRadius: '12px',
-          padding: '16px 20px',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: alreadyConfirmed ? 'var(--green-800)' : 'var(--orange-800)', marginBottom: '2px' }}>
-              {alreadyConfirmed ? '✅ You\'ve confirmed your arrival!' : '🔔 Your slot is approaching!'}
-            </div>
-            <div style={{ fontSize: '13px', color: alreadyConfirmed ? 'var(--green-700)' : 'var(--gray-600)' }}>
-              {alreadyConfirmed
-                ? 'Safe travels — head to the Mandi gate now.'
-                : `You are #${myPosition} in queue. Please confirm you are on your way.`}
-            </div>
+        <div className={`arrival-card${alreadyConfirmed ? ' arrival-card--done' : ''}`}>
+          <div className="arrival-card-title" data-speak>
+            {alreadyConfirmed ? '✅ You confirmed your arrival' : '🔔 Your turn is coming'}
+          </div>
+          <div className="arrival-card-sub" data-speak>
+            {alreadyConfirmed
+              ? 'Safe travels — go to the Mandi gate now.'
+              : `You are number ${myPosition}. Tap the button when you are on your way.`}
           </div>
           {!alreadyConfirmed && (
-            <button
-              className="btn btn-primary"
-              onClick={handleConfirm}
-              disabled={confirming}
-              style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              {confirming ? '⏳ Confirming…' : '✅ I\'m On My Way'}
+            <button className="farmer-big-btn" onClick={handleConfirm} disabled={confirming}>
+              {confirming ? '⏳ Please wait…' : '✅ I\'m On My Way'}
             </button>
-          )}
-          {alreadyConfirmed && (
-            <span className="badge badge-green" style={{ flexShrink: 0 }}>
-              <span className="badge-dot"></span>
-              Confirmed
-            </span>
           )}
         </div>
       )}
 
-      <div className="grid-2">
-        <div className="card">
-          <div className="card-title">🎯 Currently Serving</div>
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--gray-400)', marginBottom: '8px' }}>
-              At Gate Right Now
-            </div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: '36px', fontWeight: 800, color: 'var(--green-700)' }}>
-              {currentlyServing ? `KD-${String(currentlyServing.tokenNo).padStart(5, '0')}` : '—'}
-            </div>
-            <span className="badge badge-orange" style={{ marginTop: '10px' }}>
-              <span className="badge-dot"></span>
-              {currentlyServing ? currentlyServing.status : 'None'}
-            </span>
-          </div>
+      <div className="card" style={{ textAlign: 'center' }}>
+        <div className="card-title" style={{ justifyContent: 'center' }}>🎯 At the gate right now</div>
+        <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: '34px', fontWeight: 800, color: 'var(--green-700)' }}>
+          {currentlyServing ? `KD-${String(currentlyServing.tokenNo).padStart(5, '0')}` : '—'}
         </div>
-
-        <div className="card">
-          <div className="card-title">⚡ Demo Controls</div>
-          <p style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '16px' }}>
-            Simulate queue advancement — this really marks the next farmer's token as processed on the server.
-          </p>
-          <button
-            className="btn btn-primary w-full"
-            onClick={simulateAdvance}
-            disabled={advancing || waiting.length <= 1}
-            style={{ marginBottom: '10px' }}
-          >
-            {advancing ? '⏳ Advancing...' : '▶ Simulate Queue Advance'}
-          </button>
-          <div style={{ fontSize: '12px', color: 'var(--gray-400)', textAlign: 'center' }}>
-            Advances the farmer at the front of the line
-          </div>
-        </div>
+        <span className="badge badge-orange" style={{ marginTop: '10px' }}>
+          <span className="badge-dot"></span>
+          {currentlyServing ? currentlyServing.status : 'None'}
+        </span>
       </div>
 
-      <div className="card">
-        <div className="card-title">👥 Queue Around You</div>
-        {rows.length > 0 ? <QueueTable rows={rows} /> : <p style={{ color: 'var(--gray-400)', fontSize: '13px' }}>No other bookings nearby.</p>}
-      </div>
+      <button type="button" className="more-toggle" onClick={() => setShowMore(v => !v)}>
+        {showMore ? '▲ Hide details' : '▼ More details'}
+      </button>
+
+      {showMore && (
+        <div className="more-body">
+          <div className="card">
+            <div className="card-title">👥 Queue Around You</div>
+            {rows.length > 0 ? <QueueTable rows={rows} /> : <p style={{ color: 'var(--gray-400)', fontSize: '14px' }}>No other bookings nearby.</p>}
+          </div>
+
+          <div className="card">
+            <div className="card-title">⚡ Demo Controls</div>
+            <p style={{ fontSize: '14px', color: 'var(--gray-500)', marginBottom: '16px' }}>
+              Simulate queue advancement — this really marks the next farmer's token as processed on the server.
+            </p>
+            <button
+              className="btn btn-primary w-full"
+              onClick={simulateAdvance}
+              disabled={advancing || waiting.length <= 1}
+            >
+              {advancing ? '⏳ Advancing...' : '▶ Simulate Queue Advance'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading && <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>Refreshing…</p>}
     </div>

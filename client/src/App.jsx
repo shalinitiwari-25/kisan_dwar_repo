@@ -1,8 +1,12 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
-import { useState, useEffect } from 'react';
+
 import Navbar  from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
+import ListenButton from './components/ListenButton';
+import LanguageWelcome from './components/LanguageWelcome';
 import ProtectedRoute from './components/ProtectedRoute';
 import FarmerChatbot from './components/FarmerChatbot';
 import Login from './pages/Login';
@@ -38,6 +42,7 @@ function AppShell() {
   const location = useLocation();
   const isFarmer = location.pathname.startsWith('/farmer');
 
+  // Mobile only: the sidebar becomes a slide-in drawer opened from the ☰ button.
   const [navOpen, setNavOpen] = useState(false);
   useEffect(() => { setNavOpen(false); }, [location.pathname]);
 
@@ -48,7 +53,7 @@ function AppShell() {
       <div className="app-layout">
         <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
 
-        <main className="main-content">
+        <main className={`main-content${isFarmer ? ' has-bottom-nav' : ''}`}>
           <Routes>
             {/* Farmer */}
             <Route path="/farmer" element={
@@ -98,7 +103,9 @@ function AppShell() {
         </main>
       </div>
 
-      {/* KisanBot — floating chatbot, farmer pages only */}
+      {/* Farmer pages only: bottom tab bar (phones) + KisanBot floating chatbot */}
+      {isFarmer && <BottomNav />}
+      {isFarmer && <ListenButton />}
       {isFarmer && <FarmerChatbot />}
     </>
   );
@@ -107,6 +114,7 @@ function AppShell() {
 function App() {
   return (
     <BrowserRouter>
+      <LanguageWelcome />
       <Routes>
         <Route path="/login"    element={<Login />} />
         <Route path="/register" element={<Register />} />

@@ -1,10 +1,11 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { removeToken, getUser } from '../utils/auth';
 import LanguageToggle from './LanguageToggle';
 
 function Navbar({ onMenuClick }) {
   const navigate = useNavigate();
+  const isFarmer = useLocation().pathname.startsWith('/farmer');
 
   const user = getUser();
   // Build initials from name (e.g. "Ramesh Kumar" → "RK")
@@ -19,7 +20,9 @@ function Navbar({ onMenuClick }) {
 
   return (
     <nav className="navbar">
-      <button className="navbar-menu-btn" onClick={onMenuClick} aria-label="Open menu">☰</button>
+      {!isFarmer && (
+        <button className="navbar-menu-btn" onClick={onMenuClick} aria-label="Open menu">☰</button>
+      )}
       <div className="navbar-logo">
         <img src={logo} alt="Kisan Dwar Logo" onError={(e) => { e.target.style.display='none'; }} />
         <div className="navbar-logo-text" data-no-translate>

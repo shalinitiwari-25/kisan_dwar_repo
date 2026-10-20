@@ -41,6 +41,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [rebookNotice, setRebookNotice] = useState(null);
 
@@ -134,10 +135,25 @@ function Dashboard() {
   const departTime = new Date(Date.now() - waitMin * 60000 + 30 * 60000);
   const departLabel = departTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
+  // ── "What should I do now?" — one clear answer for the top card ──
+  const processed = !!lastBooking && !loading && !error && queuePosition === null;
+  let status;
+  if (!lastBooking) {
+    status = { tone: 'gray', icon: '📋', title: 'You have no booking yet', sub: 'Book a slot to get your token.', cta: { to: '/farmer/booking', label: '📋 Book a Slot' } };
+  } else if (processed) {
+    status = { tone: 'green', icon: '✅', title: 'Your token is done', sub: 'Check when your payment will arrive.', cta: { to: '/farmer/payment', label: '💳 See Payment' } };
+  } else if (queuePosition && queuePosition <= 3) {
+    status = { tone: 'green', icon: '🟢', title: 'Go to the Mandi gate now', sub: `You are number ${queuePosition} in the line.`, cta: { to: '/farmer/queue', label: '🔢 Open Live Queue' } };
+  } else if (queuePosition && queuePosition <= 8) {
+    status = { tone: 'yellow', icon: '🟡', title: 'Get ready to leave', sub: `You are number ${queuePosition} in the line.`, cta: { to: '/farmer/queue', label: '🔢 Open Live Queue' } };
+  } else {
+    status = { tone: 'yellow', icon: '🟡', title: 'Your turn is later today', sub: 'No action needed yet.', cta: { to: '/farmer/queue', label: '🔢 Open Live Queue' } };
+  }
+
   return (
-    <div>
-      {/* Hero */}
-      <div className="dashboard-hero">
+    <div className="farmer-home">
+      {/* Greeting */}
+      <div className="dashboard-hero dashboard-hero--compact">
         <img src={farmerHero} alt="Farmer in the field" className="dashboard-hero-img" />
         <div className="dashboard-hero-overlay"></div>
         <div className="dashboard-hero-content">
@@ -147,162 +163,65 @@ function Dashboard() {
               {centre ? centre.name : 'Loading…'}
             </div>
           </div>
-          <div>
-            <span className={`badge ${lastBooking ? 'badge-green' : 'badge-gray'}`}>
-              <span className="badge-dot"></span>
-              {lastBooking ? 'Booking Active' : 'No Active Booking'}
-            </span>
-          </div>
         </div>
       </div>
 
       {error && (
-        <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '13px' }}>
+        <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '14px' }}>
           Couldn't reach the server: {error}
         </div>
       )}
 
       {/* Auto-rebooking banner — shown once right after it happens */}
       {rebookNotice && (
-        <div style={{ background: '#fff7ed', border: '1.5px solid var(--orange-300)', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        <div style={{ background: '#fff7ed', border: '1.5px solid var(--orange-300)', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '22px' }}>🔄</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--orange-700)' }}>Your booking was moved</div>
-            <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginTop: '2px' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--orange-700)' }}>Your booking was moved</div>
+            <div style={{ fontSize: '14px', color: 'var(--gray-600)', marginTop: '2px' }}>
               Your Mandi centre stopped accepting crops today, so token {rebookNotice.oldTokenId} was cancelled and
               you were automatically given a new slot — token {rebookNotice.newTokenId} at {rebookNotice.newCentreName}.
               An SMS with the details has been sent to your phone.
             </div>
           </div>
-          <button className="btn btn-outline btn-sm" onClick={() => setRebookNotice(null)}>Dismiss</button>
+          <button className="btn btn-outline btn-sm" onClick={() => setRebookNotice(null)}>OK</button>
         </div>
       )}
 
-      {/* Departure Guidance */}
-      <div className="ai-card">
-        <div className="ai-card-label">Smart Departure Guidance</div>
-        {lastBooking ? (
-          <>
-            <div className="ai-card-time">{departLabel}</div>
-            <div className="ai-card-sub">Best time to depart from home — gate wait is ~{Math.max(ahead * 3, 5)} mins right now</div>
-            <div className="ai-card-pills">
-              <div className="ai-pill">⏱️ Gate Wait ~{Math.max(ahead * 3, 5)} mins</div>
-              <div className="ai-pill">📍 Queue Position #{queuePosition ?? '—'}</div>
-              {(() => {
-                const dist = getDistance(user.village, lastBooking.centreId);
-                return dist !== null
-                  ? <div className="ai-pill">🛣️ ~{dist} km to Mandi</div>
-                  : <div className="ai-pill">🚛 Route Clear</div>;
-              })()}
-            </div>
-            <div style={{ marginTop: '14px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
-              Calculated from queue position #{queuePosition ?? '—'}, {ahead} farmers ahead, and average processing time per token
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="ai-card-sub">Book a procurement slot to get a personalised departure time</div>
-            <Link to="/farmer/booking" className="btn btn-primary" style={{ marginTop: '12px', display: 'inline-flex' }}>
-              + Book a Slot
-            </Link>
-          </>
-        )}
-      </div>
+      {/* ── 1. The one thing to do now ───────────────────────────── */}
+      <div className={`farmer-status farmer-status--${status.tone}`}>
+        <div className="farmer-status-top">
+          <div className="farmer-status-icon">{status.icon}</div>
+          <div>
+            <div className="farmer-status-title" data-speak>{status.title}</div>
+            <div className="farmer-status-sub" data-speak>{status.sub}</div>
+          </div>
+        </div>
 
-      {/* Stat Cards */}
-      <div className="stat-cards-grid">
-        <StatCard label="Queue Position" value={queuePosition ? `#${queuePosition}` : '—'} sub={queuePosition ? `${ahead} farmers ahead` : 'No booking yet'} icon="🔢" color="green" />
-        <StatCard label="Yard Capacity" value={centre ? `${centre.yardCapacityUsed}%` : '—'} sub={centre?.yardCapacityUsed >= 90 ? 'Nearly full' : 'Filling up'} icon="🏗️" color={centre?.yardCapacityUsed >= 90 ? 'orange' : 'green'} />
-        <StatCard label="Est. Wait Time" value={queuePosition ? `${waitMin} min` : '—'} sub={queuePosition ? `~${(waitMin / 60).toFixed(1)} hours from now` : '—'} icon="⏳" color="gold" />
-        <StatCard label="Booking Status" value={lastBooking ? '✓ Confirmed' : 'None'} sub={lastBooking ? 'Active booking' : 'Book a slot to start'} icon="📋" color={lastBooking ? 'green' : 'gray'} />
-      </div>
-
-      <div className="grid-2">
-        {/* Active Booking Card */}
-        {lastBooking ? (
-          <div className="booking-card">
-            <div className="booking-card-header">
-              <div className="card-title" style={{ marginBottom: 0 }}>📋 Active Booking</div>
-              <div className="booking-token">{lastBooking.tokenId}</div>
-            </div>
-            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '12px 0' }}></div>
-            <div className="booking-detail-grid">
-              <div className="booking-detail-item">
-                <div className="booking-detail-label">Mandi Centre</div>
-                <div className="booking-detail-value">{lastBooking.centre}</div>
-              </div>
-              <div className="booking-detail-item">
-                <div className="booking-detail-label">Crop Type</div>
-                <div className="booking-detail-value">🌾 {lastBooking.crop}</div>
-              </div>
-              <div className="booking-detail-item">
-                <div className="booking-detail-label">Quantity</div>
-                <div className="booking-detail-value">{lastBooking.quantity} Quintals</div>
-              </div>
-              <div className="booking-detail-item">
-                <div className="booking-detail-label">Time Slot</div>
-                <div className="booking-detail-value">{lastBooking.slot}</div>
-              </div>
-            </div>
-            {lastBooking.confirmed && (
-              <div style={{ marginTop: '12px', background: '#f0fdf4', border: '1px solid var(--green-200)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', fontWeight: 600, color: 'var(--green-700)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                ✅ You've confirmed your arrival — safe travels!
+        {lastBooking && (
+          <div className="farmer-status-token">
+            <div className="farmer-status-token-label">Your Token</div>
+            <div className="farmer-status-token-id" data-speak data-no-translate>{lastBooking.tokenId}</div>
+            {queuePosition && (
+              <div className="farmer-status-token-meta" data-speak>
+                Position #{queuePosition} · {ahead} ahead · about {waitMin} min
               </div>
             )}
-            <Link to="/farmer/queue" className="btn btn-outline" style={{ marginTop: '14px', width: '100%', justifyContent: 'center' }}>
-              Track live queue →
-            </Link>
-          </div>
-        ) : (
-          <div className="card" style={{ textAlign: 'center', padding: '30px 20px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '14px' }}>
-              You don't have an active booking yet.
-            </div>
-            <Link to="/farmer/booking" className="btn btn-primary">Book your slot</Link>
           </div>
         )}
 
-        {/* Mandi Centre Status */}
-        <div className="card">
-          <div className="card-title">🏛️ Mandi Centre Status</div>
-
-          {centre && (
-            <>
-              <div className="progress-row">
-                <div className="progress-label">
-                  <span>Yard Capacity</span>
-                  <span style={{ fontWeight: 700, color: 'var(--orange-600)' }}>{centre.yardCapacityUsed}%</span>
-                </div>
-                <div className="progress-bar-track">
-                  <div className="progress-bar-fill orange" style={{ width: `${centre.yardCapacityUsed}%` }}></div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span className={`badge ${centre.trucksLiftingToday ? 'badge-green' : 'badge-red'}`}>
-                  {centre.trucksLiftingToday ? '✓ Trucks Operational' : '✗ Trucks Halted'}
-                </span>
-                <span className={`badge ${centre.gunnyBagsAvailable ? 'badge-green' : 'badge-red'}`}>
-                  {centre.gunnyBagsAvailable ? '✓ Bags Available' : '✗ Bags Low'}
-                </span>
-                <span className={`badge ${centre.status === 'OPEN' ? 'badge-green' : centre.status === 'RESTRICTED' ? 'badge-orange' : 'badge-red'}`}>
-                  Centre {centre.status}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
+        <Link to={status.cta.to} className="farmer-big-btn">{status.cta.label}</Link>
       </div>
 
-      {/* ── Mandi Alerts (mirrors the SMS sent to the farmer's phone) ──── */}
+      {/* Alerts from the Mandi (same messages sent by SMS) — latest 3 only */}
       {notifications.length > 0 && (
-        <div className="card" style={{ marginTop: '20px' }}>
+        <div className="card" style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div className="card-title" style={{ marginBottom: 0 }}>📩 Mandi Alerts</div>
-            <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>Also sent by SMS</span>
+            <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>Also sent by SMS</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-            {notifications.slice(0, 6).map((n) => {
+            {notifications.slice(0, 3).map((n) => {
               const meta = ALERT_META[n.type] || { icon: '📩', tone: 'gray', label: n.type };
               return (
                 <div
@@ -314,12 +233,12 @@ function Dashboard() {
                     borderRadius: '10px', padding: '10px 14px',
                   }}
                 >
-                  <div style={{ fontSize: '18px' }}>{meta.icon}</div>
+                  <div style={{ fontSize: '20px' }}>{meta.icon}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: meta.tone === 'red' ? '#b91c1c' : 'var(--orange-700)' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: meta.tone === 'red' ? '#b91c1c' : 'var(--orange-700)' }}>
                       {n.titleEn}
                     </div>
-                    <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginTop: '2px' }}>{n.messageEn}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--gray-600)', marginTop: '2px' }}>{n.messageEn}</div>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--gray-400)', whiteSpace: 'nowrap' }}>{timeAgo(n.createdAt)}</div>
                 </div>
@@ -329,19 +248,58 @@ function Dashboard() {
         </div>
       )}
 
-      {/* ── My QR Token ─────────────────────────────────────────────────── */}
-      {qrValue && (
-        <div className="card" style={{ marginTop: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div className="card-title" style={{ marginBottom: 0 }}>📱 My Booking QR Token</div>
-            <span className="badge badge-green"><span className="badge-dot"></span>Ready to show at gate</span>
+      {/* ── 2. Big tiles ─────────────────────────────────────────── */}
+      <div className="home-tiles">
+        <Link to="/farmer/booking" className="home-tile home-tile--green">
+          <span className="home-tile-icon">📋</span>
+          <span className="home-tile-label">Book a Slot</span>
+        </Link>
+        <Link to="/farmer/queue" className="home-tile home-tile--blue">
+          <span className="home-tile-icon">🔢</span>
+          <span className="home-tile-label">Queue Status</span>
+        </Link>
+        <Link to="/farmer/payment" className="home-tile home-tile--orange">
+          <span className="home-tile-icon">💳</span>
+          <span className="home-tile-label">Payment Status</span>
+        </Link>
+        <button
+          type="button"
+          className="home-tile home-tile--purple"
+          onClick={() => window.dispatchEvent(new Event('kd-open-chatbot'))}
+        >
+          <span className="home-tile-icon">💬</span>
+          <span className="home-tile-label">Need Help?</span>
+        </button>
+      </div>
+
+      {/* ── 3. When to leave home (only while waiting in the queue) ─ */}
+      {lastBooking && queuePosition && (
+        <div className="ai-card">
+          <div className="ai-card-label" data-speak>When to leave home</div>
+          <div className="ai-card-time" data-speak>{departLabel}</div>
+          <div className="ai-card-sub">Best time to start from home</div>
+          <div className="ai-card-pills">
+            <div className="ai-pill">⏱️ Gate wait ~{Math.max(ahead * 3, 5)} min</div>
+            {(() => {
+              const dist = getDistance(user.village, lastBooking.centreId);
+              return dist !== null
+                ? <div className="ai-pill">🛣️ ~{dist} km to Mandi</div>
+                : <div className="ai-pill">🚛 Route Clear</div>;
+            })()}
           </div>
-          <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        </div>
+      )}
+
+      {/* ── 4. My QR Token (show at the gate) ────────────────────── */}
+      {qrValue && (
+        <div className="card">
+          <div className="card-title">📱 My QR Ticket — show at the gate</div>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             <div style={{ background: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid var(--gray-100)', display: 'inline-block' }}>
-              <QRCodeSVG value={qrValue} size={140} level="M" />
+              <QRCodeSVG value={qrValue} size={170} level="M" />
             </div>
-            <div style={{ flex: 1, minWidth: '180px' }}>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--green-700)', letterSpacing: '1px', marginBottom: '10px' }}>
+            <div style={{ flex: 1, minWidth: '200px' }}>
+              <div data-no-translate style={{ fontSize: '26px', fontWeight: 800, color: 'var(--green-700)', letterSpacing: '1px', marginBottom: '10px' }}>
                 {lastBooking.tokenId}
               </div>
               {[
@@ -350,21 +308,65 @@ function Dashboard() {
                 ['Quantity', `${lastBooking.quantity} Quintals`],
                 ['Slot', lastBooking.slot],
               ].map(([label, val]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '5px 0', borderBottom: '1px solid var(--gray-100)' }}>
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', padding: '6px 0', borderBottom: '1px solid var(--gray-100)' }}>
                   <span style={{ color: 'var(--gray-500)' }}>{label}</span>
                   <span style={{ fontWeight: 600 }}>{val}</span>
                 </div>
               ))}
-              <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--gray-400)', fontStyle: 'italic' }}>
-                Show this QR at the Mandi gate for entry
-              </div>
+              {lastBooking.confirmed && (
+                <div style={{ marginTop: '10px', fontSize: '14px', fontWeight: 600, color: 'var(--green-700)' }}>
+                  ✅ You confirmed your arrival
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
+      {/* ── 5. Everything else, tucked away ──────────────────────── */}
+      <button type="button" className="more-toggle" onClick={() => setShowMore(v => !v)}>
+        {showMore ? '▲ Hide details' : '▼ More details'}
+      </button>
+
+      {showMore && (
+        <div className="more-body">
+          <div className="stat-cards-grid">
+            <StatCard label="Queue Position" value={queuePosition ? `#${queuePosition}` : '—'} sub={queuePosition ? `${ahead} farmers ahead` : 'No booking yet'} icon="🔢" color="green" />
+            <StatCard label="Yard Capacity" value={centre ? `${centre.yardCapacityUsed}%` : '—'} sub={centre?.yardCapacityUsed >= 90 ? 'Nearly full' : 'Filling up'} icon="🏗️" color={centre?.yardCapacityUsed >= 90 ? 'orange' : 'green'} />
+            <StatCard label="Est. Wait Time" value={queuePosition ? `${waitMin} min` : '—'} sub={queuePosition ? `~${(waitMin / 60).toFixed(1)} hours from now` : '—'} icon="⏳" color="gold" />
+            <StatCard label="Booking Status" value={lastBooking ? '✓ Confirmed' : 'None'} sub={lastBooking ? 'Active booking' : 'Book a slot to start'} icon="📋" color={lastBooking ? 'green' : 'gray'} />
+          </div>
+
+          <div className="card">
+            <div className="card-title">🏛️ Mandi Centre Status</div>
+            {centre && (
+              <>
+                <div className="progress-row">
+                  <div className="progress-label">
+                    <span>Yard Capacity</span>
+                    <span style={{ fontWeight: 700, color: 'var(--orange-600)' }}>{centre.yardCapacityUsed}%</span>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div className="progress-bar-fill orange" style={{ width: `${centre.yardCapacityUsed}%` }}></div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className={`badge ${centre.trucksLiftingToday ? 'badge-green' : 'badge-red'}`}>
+                    {centre.trucksLiftingToday ? '✓ Trucks Operational' : '✗ Trucks Halted'}
+                  </span>
+                  <span className={`badge ${centre.gunnyBagsAvailable ? 'badge-green' : 'badge-red'}`}>
+                    {centre.gunnyBagsAvailable ? '✓ Bags Available' : '✗ Bags Low'}
+                  </span>
+                  <span className={`badge ${centre.status === 'OPEN' ? 'badge-green' : centre.status === 'RESTRICTED' ? 'badge-orange' : 'badge-red'}`}>
+                    Centre {centre.status}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
       {/* ── Kisan Pehchan Patra (Farmer ID Card) ────────────────────────── */}
-      <div className="card" style={{ marginTop: '20px' }}>
+      <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div className="card-title" style={{ marginBottom: 0 }}>🪪 Kisan Pehchan Patra</div>
           <button
@@ -426,6 +428,9 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+        </div>
+      )}
 
       {loading && <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>Loading live data…</p>}
     </div>

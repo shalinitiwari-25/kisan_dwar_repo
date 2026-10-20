@@ -38,10 +38,10 @@ function Sidebar({ open = false, onClose = () => {} }) {
     sectionEmoji = '📊';
   }
 
-    return (
+  return (
     <>
     <div className={`sidebar-backdrop${open ? ' show' : ''}`} onClick={onClose} />
-    <aside className={`sidebar${open ? ' open' : ''}`}>
+    <aside className={`sidebar${open ? ' open' : ''}${location.pathname.startsWith('/farmer') ? ' sidebar-farmer' : ''}`}>
       <div className="sidebar-section-label">{sectionEmoji} {sectionLabel}</div>
       {links.map(link => (
         <NavLink

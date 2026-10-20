@@ -2006,6 +2006,8 @@ tr.highlighted td {
 
 /* =============================================
    MOBILE LAYOUT (phones / small tablets)
+   Desktop is untouched — everything is inside media queries,
+   except the hamburger + backdrop which are hidden by default.
    ============================================= */
 .navbar-menu-btn { display: none; }
 .sidebar-backdrop { display: none; }
@@ -2013,6 +2015,7 @@ tr.highlighted td {
 @media (max-width: 768px) {
   html, body, #root { overflow-x: hidden; }
 
+  /* Top bar: compact, with ☰ button */
   .navbar { padding: 0 12px; gap: 8px; }
   .navbar-menu-btn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -2028,6 +2031,7 @@ tr.highlighted td {
   .profile-name { display: none; }
   .profile-chip { padding: 4px; }
 
+  /* Sidebar becomes an off-canvas drawer */
   .sidebar {
     position: fixed; top: 68px; bottom: 0; left: 0;
     width: 260px; max-width: 82vw;
@@ -2044,6 +2048,7 @@ tr.highlighted td {
   }
   .sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
 
+  /* Content uses the full width */
   .app-layout { display: block; min-height: calc(100vh - 68px); }
   .main-content { padding: 14px 12px; min-width: 0; }
 
@@ -2061,6 +2066,8 @@ tr.highlighted td {
   .main-content { padding: 12px 10px; }
 }
 
+/* Phone top bar: logo image already carries the brand name, so drop the
+   duplicate text and compact the language pill so nothing overlaps. */
 @media (max-width: 480px) {
   .navbar-logo-text { display: none; }
   .navbar-logo img { width: 40px; height: 40px; }
@@ -2069,4 +2076,170 @@ tr.highlighted td {
   .lang-select-wrap { padding: 3px 8px; }
   .lang-select { font-size: 12px; max-width: 92px; }
   .navbar-right .btn-sm { padding: 6px 10px; }
+}
+
+/* =====================================================================
+   FARMER-FRIENDLY UI  (step 1: structure)
+   Big targets, one clear action per screen, bottom tab bar on phones.
+   ===================================================================== */
+
+/* ---- Bottom tab bar (farmers, phones only) ---- */
+.bottom-nav { display: none; }
+
+/* ---- Home: compact greeting ---- */
+.dashboard-hero--compact { min-height: 150px; margin-bottom: 16px; }
+
+/* ---- Home: "what to do now" card ---- */
+.farmer-status {
+  border-radius: 20px; padding: 20px; margin-bottom: 16px;
+  border: 2px solid var(--gray-200); background: white;
+  box-shadow: var(--shadow-sm);
+}
+.farmer-status--green  { background: var(--green-50);  border-color: var(--green-400); }
+.farmer-status--yellow { background: #fffbeb;          border-color: var(--amber-400); }
+.farmer-status--gray   { background: white;            border-color: var(--gray-300); }
+.farmer-status-top { display: flex; gap: 14px; align-items: center; }
+.farmer-status-icon { font-size: 40px; line-height: 1; flex-shrink: 0; }
+.farmer-status-title { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+.farmer-status-sub { font-size: 16px; color: var(--gray-600); margin-top: 4px; }
+.farmer-status-token { margin-top: 16px; text-align: center; background: white; border-radius: 14px; padding: 12px; border: 1.5px solid var(--gray-100); }
+.farmer-status-token-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gray-500); }
+.farmer-status-token-id { font-family: 'Outfit', sans-serif; font-size: 34px; font-weight: 800; color: var(--green-700); letter-spacing: 1px; }
+.farmer-status-token-meta { font-size: 15px; color: var(--gray-600); margin-top: 2px; }
+
+/* Big primary button (min 56px tall) */
+.farmer-big-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 58px; margin-top: 16px; padding: 12px 18px;
+  border: none; border-radius: 16px; cursor: pointer; text-decoration: none;
+  background: var(--grad-green); color: white;
+  font-family: var(--font-sans); font-size: 19px; font-weight: 800;
+  box-shadow: var(--shadow-green);
+}
+.farmer-big-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ---- Home: big tiles ---- */
+.home-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.home-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  min-height: 130px; padding: 14px 8px; border-radius: 20px; border: 2px solid transparent;
+  text-decoration: none; cursor: pointer; font-family: var(--font-sans);
+  box-shadow: var(--shadow-sm); transition: transform 0.15s;
+}
+.home-tile:active { transform: scale(0.97); }
+.home-tile-icon  { font-size: 44px; line-height: 1; }
+.home-tile-label { font-size: 17px; font-weight: 800; text-align: center; line-height: 1.2; }
+.home-tile--green  { background: #ecfdf5; border-color: #86efac; color: var(--green-800); }
+.home-tile--blue   { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+.home-tile--orange { background: #fff7ed; border-color: #fdba74; color: var(--orange-700); }
+.home-tile--purple { background: #f5f3ff; border-color: #c4b5fd; color: #5b21b6; }
+
+/* ---- "More details" fold ---- */
+.more-toggle {
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  min-height: 52px; margin: 4px 0 16px; border-radius: 14px;
+  border: 2px dashed var(--gray-300); background: white; color: var(--gray-700);
+  font-family: var(--font-sans); font-size: 16px; font-weight: 700; cursor: pointer;
+}
+.more-body { margin-bottom: 16px; }
+
+/* ---- Queue screen ---- */
+.queue-banner {
+  border-radius: 16px; padding: 16px 18px; margin-bottom: 16px;
+  font-size: 19px; font-weight: 800; line-height: 1.3; border: 2px solid;
+}
+.queue-banner--green  { background: var(--green-50); border-color: var(--green-400); color: var(--green-800); }
+.queue-banner--yellow { background: #fffbeb;         border-color: var(--amber-400); color: #92400e; }
+
+.queue-hero--big { padding: 24px 16px; }
+.queue-token-big {
+  font-family: 'Outfit', sans-serif; font-size: 52px; font-weight: 800;
+  line-height: 1.05; letter-spacing: 1px; color: white;
+  text-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+.queue-pos-row { display: flex; justify-content: center; gap: 12px; margin-top: 18px; }
+.queue-pos-box { flex: 1; max-width: 120px; background: rgba(255,255,255,0.14); border-radius: 14px; padding: 10px 6px; }
+.queue-pos-value { font-family: 'Outfit', sans-serif; font-size: 30px; font-weight: 800; color: var(--amber-400); line-height: 1.1; }
+
+.arrival-card { background: #fff7ed; border: 2px solid var(--orange-200); border-radius: 16px; padding: 16px 18px; margin-bottom: 16px; }
+.arrival-card--done { background: var(--green-50); border-color: var(--green-400); }
+.arrival-card-title { font-size: 19px; font-weight: 800; color: var(--gray-900); }
+.arrival-card-sub { font-size: 16px; color: var(--gray-600); margin-top: 4px; }
+
+/* ---- Phones ---- */
+@media (max-width: 768px) {
+  /* farmers use the bottom tab bar, not the drawer */
+  .sidebar-farmer { display: none !important; }
+
+  .bottom-nav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+    background: white; border-top: 1.5px solid var(--gray-200);
+    box-shadow: 0 -4px 18px rgba(0,0,0,0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-nav-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; min-height: 66px; padding: 6px 2px; text-decoration: none;
+    color: var(--gray-500); font-family: var(--font-sans);
+  }
+  .bottom-nav-icon  { font-size: 26px; line-height: 1; }
+  .bottom-nav-label { font-size: 13px; font-weight: 700; }
+  .bottom-nav-tab.active { color: var(--green-800); background: var(--green-50); box-shadow: inset 0 3px 0 var(--green-600); }
+
+  .main-content.has-bottom-nav { padding-bottom: 96px; }
+
+  /* KisanBot: compact round button above the tab bar; hidden on Home (it has a Need Help tile) */
+  .chatbot-fab-label { display: none; }
+  .chatbot-fab { width: 56px; height: 56px; padding: 0; justify-content: center; }
+  .chatbot-fab--home:not(.chatbot-fab--open) { display: none; }
+  .chatbot-fab { bottom: calc(148px + env(safe-area-inset-bottom, 0px)); right: 14px; }
+  .chatbot-window { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); right: 8px; }
+
+  .dashboard-hero--compact { min-height: 120px; }
+  .home-tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .queue-token-big { font-size: 44px; }
+
+  /* easier tapping everywhere on phones */
+  .btn { min-height: 44px; }
+}
+
+/* =====================================================================
+   STEP 2: language chooser + "Listen" (read aloud) button
+   ===================================================================== */
+.queue-pos-unit { font-size: 0.5em; font-weight: 700; }
+
+.lang-welcome {
+  position: fixed; inset: 0; z-index: 5000; background: linear-gradient(160deg, #f0fdf4, #ffffff 60%);
+  display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: 20px;
+}
+.lang-welcome-inner { width: 100%; max-width: 460px; text-align: center; }
+.lang-welcome-logo { font-size: 54px; margin-bottom: 8px; }
+.lang-welcome-heads { margin-bottom: 20px; color: var(--green-800); font-weight: 700; font-size: 16px; line-height: 1.7; }
+.lang-welcome-heads div:first-child { font-size: 20px; font-weight: 800; }
+.lang-welcome-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lang-welcome-btn {
+  min-height: 78px; border-radius: 18px; border: 2px solid var(--green-400);
+  background: white; color: var(--green-800); cursor: pointer;
+  font-size: 26px; font-weight: 800; font-family: var(--font-sans);
+  box-shadow: var(--shadow-sm);
+}
+.lang-welcome-btn:active { background: var(--green-50); transform: scale(0.98); }
+
+.listen-btn {
+  position: fixed; right: 28px; bottom: 92px; z-index: 998;
+  display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 20px 0 16px;
+  border-radius: 999px; border: 2px solid var(--green-600); background: white; color: var(--green-800);
+  font-family: var(--font-sans); font-size: 17px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.listen-btn-icon { font-size: 22px; line-height: 1; }
+.listen-btn--on { background: var(--green-600); color: white; }
+.listen-hint {
+  position: fixed; left: 14px; right: 14px; bottom: 150px; z-index: 999;
+  background: #1f2937; color: white; border-radius: 14px; padding: 14px 16px;
+  font-size: 15px; line-height: 1.4; box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+}
+@media (max-width: 768px) {
+  .listen-btn { right: 14px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+  .listen-hint { bottom: calc(146px + env(safe-area-inset-bottom, 0px)); }
 }
