@@ -52,6 +52,9 @@ export const register = (data) => API.post('/auth/register', data);
 // ── Translation (English <-> Hindi) ───────────────────────
 export const translateTexts = (texts, target) => API.post('/translate', { texts, target });
 
+// ── Text-to-speech (Bhashini voices, used when the phone has none) ──
+export const ttsRequest = (texts, target) => API.post('/tts', { texts, target }, { timeout: 25000 });
+
 // ── Notifications (Mandi delay/shortage/rebooking alerts) ─
 export const getNotifications = (aadhaar) => API.get(`/notifications/farmer/${aadhaar}`);
 

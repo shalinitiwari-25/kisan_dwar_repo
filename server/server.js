@@ -13,6 +13,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const procurementRoutes = require('./routes/procurementRoutes');
 const authRoutes = require('./routes/authRoutes');
 const translateRoutes = require('./routes/translateRoutes');
+const ttsRoutes = require('./routes/ttsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
@@ -78,6 +79,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/procurement', procurementRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/tts', ttsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 const PORT = process.env.PORT || 5000;

@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import QRModal from '../../components/QRModal';
-import { createBooking, getCentre, updateBookingStatus } from '../../services/api';
+import CropIcon from '../../components/CropIcon';
+import { createBooking, getCentre, getAllCentres, updateBookingStatus } from '../../services/api';
 import { getUser } from '../../utils/auth';
 import { getDistance } from '../../utils/distanceTable';
+import { useLanguage } from '../../context/LanguageContext';
+import { VOICE_LANG } from '../../utils/speech';
 
 const CENTRE_MAP = {
   'C001': 'Karnal Mandi',
@@ -11,27 +15,55 @@ const CENTRE_MAP = {
 };
 
 const slots = [
-  { label: '7 AM – 9 AM',  tag: 'Full', status: 'full' },
-  { label: '9 AM – 11 AM', tag: '',     status: 'open' },
-  { label: '11 AM – 1 PM', tag: '',     status: 'open' },
-  { label: '1 PM – 3 PM',  tag: '',     status: 'open' },
-  { label: '3 PM – 5 PM',  tag: '',     status: 'open' },
+  { label: '7 AM – 9 AM',  status: 'full' },
+  { label: '9 AM – 11 AM', status: 'open' },
+  { label: '11 AM – 1 PM', status: 'open' },
+  { label: '1 PM – 3 PM',  status: 'open' },
+  { label: '3 PM – 5 PM',  status: 'open' },
 ];
+
+// Values sent to the server stay English; names are shown in the farmer's own script.
+const CROPS = ['Wheat', 'Paddy', 'Mustard', 'Cotton', 'Sunflower'];
+const CROP_NAMES = {
+  Wheat:     { en: 'Wheat',     hi: 'गेहूँ',     pa: 'ਕਣਕ',       or: 'ଗହମ',      bn: 'গম',      mr: 'गहू',      gu: 'ઘઉં' },
+  Paddy:     { en: 'Paddy',     hi: 'धान',      pa: 'ਝੋਨਾ',      or: 'ଧାନ',      bn: 'ধান',     mr: 'धान',      gu: 'ડાંગર' },
+  Mustard:   { en: 'Mustard',   hi: 'सरसों',    pa: 'ਸਰ੍ਹੋਂ',     or: 'ସୋରିଷ',    bn: 'সরিষা',   mr: 'मोहरी',    gu: 'રાઈ' },
+  Cotton:    { en: 'Cotton',    hi: 'कपास',     pa: 'ਕਪਾਹ',      or: 'କପା',      bn: 'তুলা',    mr: 'कापूस',    gu: 'કપાસ' },
+  Sunflower: { en: 'Sunflower', hi: 'सूरजमुखी', pa: 'ਸੂਰਜਮੁਖੀ',  or: 'ସୂର୍ଯ୍ୟମୁଖୀ', bn: 'সূর্যমুখী', mr: 'सूर्यफूल', gu: 'સૂર્યમુખી' },
+};
+// Same figures the old page showed (₹ per quintal). Update each season.
+const MSP = { Wheat: 2275, Paddy: 2300, Mustard: 5650, Cotton: 7121 };
+
+const STEPS = 5;
+const QTY_CHIPS = [10, 20, 30, 50];
+
+const rupees = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
+const localISO = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 function Booking() {
   const currentUser = getUser();
+  const { lang } = useLanguage();
+  const cropName = (c) => (CROP_NAMES[c] && (CROP_NAMES[c][lang] || CROP_NAMES[c].en)) || c;
 
-  const [form, setForm] = useState({
-    crop: '',
-    quantity: '',
-    aadhaar: currentUser.aadhaar || '',
-    centreId: 'C001',
-    date: '',
-  });
-  const [selectedSlot, setSelectedSlot] = useState(1); // default first open slot
-  const [aadhaarVerified, setAadhaarVerified] = useState(!!currentUser.aadhaar);
-  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
+  const [crop, setCrop] = useState('');
+  const [qty, setQty] = useState(0);
+  const [centreId, setCentreId] = useState('');
+  const [dateISO, setDateISO] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [aadhaar, setAadhaar] = useState(currentUser.aadhaar || '');
+  const [showOtherDate, setShowOtherDate] = useState(false);
+
+  const [centres, setCentres] = useState(
+    Object.entries(CENTRE_MAP).map(([id, name]) => ({ centreId: id, name, status: 'OPEN' }))
+  );
   const [centreStatus, setCentreStatus] = useState('OPEN');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestedCentre, setSuggestedCentre] = useState(null);
   const [existingBooking, setExistingBooking] = useState(null);
@@ -40,51 +72,92 @@ function Booking() {
   const [showModal, setShowModal] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    if (name === 'centreId') {
-      setError('');
-      setSuggestedCentre(null);
-      checkCentreStatus(value);
-    }
-  };
+  // Load live centre status; pre-select the nearest OPEN centre to the farmer's village.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let list = centres;
+      try {
+        const res = await getAllCentres();
+        if (Array.isArray(res.data) && res.data.length) list = res.data;
+      } catch { /* keep the built-in list */ }
+      if (cancelled) return;
+      setCentres(list);
+      const open = list.filter(c => c.status !== 'PAUSED');
+      const withDist = open
+        .map(c => ({ c, d: getDistance(currentUser.village, c.centreId) }))
+        .filter(x => x.d !== null)
+        .sort((a, b) => a.d - b.d);
+      const pick = withDist[0]?.c || open[0] || list[0];
+      if (pick) { setCentreId(pick.centreId); setCentreStatus(pick.status || 'OPEN'); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const checkCentreStatus = async (centreId) => {
+  const nearestOpenId = (() => {
+    const open = centres.filter(c => c.status !== 'PAUSED')
+      .map(c => ({ id: c.centreId, d: getDistance(currentUser.village, c.centreId) }))
+      .filter(x => x.d !== null).sort((a, b) => a.d - b.d);
+    return open[0]?.id || null;
+  })();
+
+  const chooseCentre = async (c) => {
+    if (c.status === 'PAUSED') return;
+    setCentreId(c.centreId);
+    setError(''); setSuggestedCentre(null); setExistingBooking(null);
     try {
-      const res = await getCentre(centreId);
+      const res = await getCentre(c.centreId);
       setCentreStatus(res.data.status);
-    } catch {
-      setCentreStatus('OPEN');
-    }
-  };
-
-  const verifyAadhaar = () => {
-    if (form.aadhaar.length >= 12) {
-      setAadhaarVerified(true);
-    }
+    } catch { setCentreStatus(c.status || 'OPEN'); }
   };
 
   const switchToSuggested = () => {
     if (!suggestedCentre) return;
-    setForm(prev => ({ ...prev, centreId: suggestedCentre.centreId }));
+    setCentreId(suggestedCentre.centreId);
     setCentreStatus(suggestedCentre.status);
     setSuggestedCentre(null);
     setError('');
+    setStep(5);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // ── quick dates, shown in the farmer's own language ──
+  const dayOptions = [0, 1, 2].map((offset) => {
+    const d = new Date(); d.setDate(d.getDate() + offset);
+    let text;
+    try {
+      text = new Intl.DateTimeFormat(VOICE_LANG[lang] || 'en-IN', { weekday: 'long', day: 'numeric', month: 'short' }).format(d);
+    } catch { text = d.toDateString(); }
+    return { iso: localISO(d), text, label: ['Today', 'Tomorrow', 'Day after tomorrow'][offset] };
+  });
+  const dateText = (iso) => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-').map(Number);
+    try {
+      return new Intl.DateTimeFormat(VOICE_LANG[lang] || 'en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d));
+    } catch { return iso; }
+  };
+
+  const canNext =
+    (step === 1 && !!crop) ||
+    (step === 2 && qty > 0) ||
+    (step === 3 && !!centreId && centreStatus !== 'PAUSED') ||
+    (step === 4 && !!dateISO && selectedSlot !== null);
+
+  const goNext = () => { if (canNext) { setError(''); setStep(s => Math.min(STEPS, s + 1)); } };
+  const goBack = () => { setError(''); setStep(s => Math.max(1, s - 1)); };
+
+  const handleSubmit = async () => {
     setError('');
     setSuggestedCentre(null);
     setExistingBooking(null);
 
-    if (!form.crop || !form.quantity || !form.centreId || !form.date) {
-      setError('Please fill in all required fields.');
+    if (!crop || !qty || !centreId || !dateISO || selectedSlot === null) {
+      setError('Please complete all the steps.');
       return;
     }
-    if (!aadhaarVerified) {
-      setError('Please verify your Aadhaar number first.');
+    if (String(aadhaar).length < 12) {
+      setError('Please enter your 12-digit Aadhaar number.');
       return;
     }
     if (centreStatus === 'PAUSED') {
@@ -96,10 +169,10 @@ function Booking() {
     try {
       const res = await createBooking({
         farmerName: currentUser.name || 'Farmer',
-        aadhaar: form.aadhaar,
-        crop: form.crop,
-        quantity: parseInt(form.quantity),
-        centreId: form.centreId,
+        aadhaar,
+        crop,
+        quantity: parseInt(qty, 10),
+        centreId,
       });
 
       const created = res.data;
@@ -120,9 +193,8 @@ function Booking() {
       localStorage.setItem('kd_lastBooking', JSON.stringify(bookingRecord));
 
       setBooking(bookingRecord);
-      setSmsSent(true);  // show SMS confirmation banner
+      setSmsSent(true);
       setShowModal(true);
-
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.message || '';
@@ -144,9 +216,7 @@ function Booking() {
     }
   };
 
-  // Demo/reset convenience: lets you free up your Aadhaar's one-active-
-  // booking slot instantly, without needing to switch to the officer view
-  // to process/no-show it manually.
+  // Demo/reset convenience: frees the one-active-booking-per-Aadhaar slot
   const handleCancelExisting = async () => {
     if (!existingBooking?._id) return;
     setCancelling(true);
@@ -161,248 +231,273 @@ function Booking() {
     }
   };
 
+  // ───────────────────────── Booked! ─────────────────────────
+  if (booking && !showModal) {
+    return (
+      <div className="wizard">
+        <div className="wizard-done">
+          <div className="wizard-done-icon">✅</div>
+          <div className="wizard-done-title" data-speak>Your slot is booked!</div>
+          <div className="wizard-done-token" data-speak data-no-translate>{booking.tokenId}</div>
+          <div className="wizard-done-sub" data-speak>Show your QR ticket at the Mandi gate.</div>
+
+          {smsSent && currentUser.phone && (
+            <div className="wizard-sms">
+              📱 SMS sent to <strong data-no-translate>+91-{currentUser.phone.slice(0, 4)}XXXXX{currentUser.phone.slice(-1)}</strong>
+            </div>
+          )}
+
+          <div className="wizard-summary">
+            <SummaryRow icon={<CropIcon crop={booking.crop} size={34} />} label="Crop" value={cropName(booking.crop)} />
+            <SummaryRow icon="⚖️" label="Weight" value={`${booking.quantity} Quintals`} />
+            <SummaryRow icon="🏛️" label="Centre" value={booking.centre} />
+            <SummaryRow icon="🕐" label="Time" value={booking.slot} />
+          </div>
+
+          <button type="button" className="farmer-big-btn" onClick={() => setShowModal(true)}>📱 Show my QR ticket</button>
+          <Link to="/farmer" className="wizard-secondary-btn">🏠 Go to Home</Link>
+
+          <div className="wizard-checklist">
+            <div className="wizard-checklist-title" data-speak>Before you go</div>
+            {[
+              { icon: '🪪', text: 'Bring your Aadhaar card to the Mandi gate' },
+              { icon: '🕐', text: 'Reach 15 minutes before your time' },
+              { icon: '🌾', text: 'Bring clean, dry crop for a better price' },
+              { icon: '📱', text: 'Show your QR ticket at the gate' },
+            ].map((item) => (
+              <div key={item.text} className="wizard-checklist-row" data-speak>
+                <span>{item.icon}</span><span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const msp = MSP[crop];
+  const selectedCentre = centres.find(c => c.centreId === centreId);
+
   return (
-    <div>
-      <div className="page-header">
-        <div className="page-title">📋 Book Procurement Slot</div>
-        <div className="page-subtitle">Reserve your slot at the nearest Mandi procurement centre</div>
+    <div className="wizard">
+      {/* Progress */}
+      <div className="wizard-progress" aria-label={`Step ${step} of ${STEPS}`}>
+        <div className="wizard-progress-text">Step {step} of {STEPS}</div>
+        <div className="wizard-progress-bar">
+          {Array.from({ length: STEPS }, (_, i) => (
+            <span key={i} className={`wizard-seg${i < step ? ' on' : ''}`} />
+          ))}
+        </div>
       </div>
 
-      <div className="grid-2" style={{ alignItems: 'start' }}>
-        {/* Form */}
-        <div className="card">
-          <div className="card-title">📝 Booking Details</div>
-
-          {error && (
-            <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '14px', fontWeight: 500 }}>
-              {error}
-              {existingBooking && (
-                <div style={{ marginTop: '10px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={handleCancelExisting}
-                    disabled={cancelling}
-                    style={{ borderColor: '#b91c1c', color: '#b91c1c' }}
-                  >
-                    {cancelling ? 'Cancelling…' : `✕ Cancel Token #${existingBooking.tokenNo} & Book Again`}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* SMS confirmation banner */}
-          {smsSent && currentUser.phone && (
-            <div style={{ background: '#f0fdf4', border: '1.5px solid var(--green-300)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--green-700)', fontWeight: 500 }}>
-              📱 Booking confirmation SMS sent to <strong>+91-{currentUser.phone.slice(0, 4)}XXXXX{currentUser.phone.slice(-1)}</strong>
-            </div>
-          )}
-
-          {/* Farmer info strip */}
-          {currentUser.name && (
-            <div style={{ background: 'var(--gray-50)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '13px', color: 'var(--gray-600)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <span>👨‍🌾 <strong>{currentUser.name}</strong></span>
-              {currentUser.aadhaar && <span>🪪 Aadhaar: XXXX XXXX {currentUser.aadhaar.slice(-4)}</span>}
-            </div>
-          )}
-
-          {suggestedCentre && (
-            <div style={{ background: '#f0fdf4', border: '1.5px solid var(--green-200)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--green-700)', marginBottom: '4px' }}>
-                🔄 Nearest open centre found
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '6px' }}>
-                {suggestedCentre.name} is open — {suggestedCentre.yardCapacityUsed}% yard capacity used.
-              </div>
-              {(() => {
-                const dist = getDistance(currentUser.village, suggestedCentre.centreId);
-                return dist !== null ? (
-                  <div style={{ fontSize: '12px', color: 'var(--green-700)', fontWeight: 500, marginBottom: '10px' }}>
-                    📍 ~{dist} km from your village
-                  </div>
-                ) : <div style={{ marginBottom: '10px' }} />;
-              })()}
-              <button type="button" className="btn btn-primary btn-sm" onClick={switchToSuggested}>
-                Switch &amp; book here instead →
+      {error && (
+        <div className="wizard-error">
+          {error}
+          {existingBooking && (
+            <div style={{ marginTop: '10px' }}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={handleCancelExisting} disabled={cancelling}
+                style={{ borderColor: '#b91c1c', color: '#b91c1c' }}>
+                {cancelling ? 'Cancelling…' : `✕ Cancel Token #${existingBooking.tokenNo} & Book Again`}
               </button>
             </div>
           )}
+        </div>
+      )}
 
-          {centreStatus === 'PAUSED' && !suggestedCentre && (
-            <div style={{ background: '#fff1f2', border: '1.5px solid #fecaca', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', textAlign: 'center' }}>
-              <div style={{ fontSize: '28px', marginBottom: '6px' }}>🚫</div>
-              <div style={{ fontWeight: 700, color: '#b91c1c', fontSize: '15px' }}>Centre is Currently FULL</div>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>Bookings have been paused. Please select another centre.</div>
+      {suggestedCentre && (
+        <div className="wizard-suggest">
+          <div style={{ fontWeight: 800, color: 'var(--green-700)', marginBottom: '4px' }}>🔄 Nearest open centre found</div>
+          <div style={{ fontSize: '15px', color: 'var(--gray-600)', marginBottom: '10px' }}>
+            {suggestedCentre.name} is open — {suggestedCentre.yardCapacityUsed}% yard capacity used.
+            {(() => {
+              const dist = getDistance(currentUser.village, suggestedCentre.centreId);
+              return dist !== null ? ` About ${dist} km from your village.` : '';
+            })()}
+          </div>
+          <button type="button" className="farmer-big-btn" style={{ marginTop: 0 }} onClick={switchToSuggested}>
+            Book here instead →
+          </button>
+        </div>
+      )}
+
+      {/* ───── Step 1: crop ───── */}
+      {step === 1 && (
+        <div>
+          <div className="wizard-q" data-speak>Which crop are you bringing?</div>
+          <div className="crop-grid">
+            {CROPS.map((c) => (
+              <button key={c} type="button" className={`crop-tile${crop === c ? ' selected' : ''}`} onClick={() => setCrop(c)}>
+                <CropIcon crop={c} />
+                <span className="crop-tile-name" data-no-translate>{cropName(c)}</span>
+                {crop === c && <span className="crop-tile-check">✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ───── Step 2: weight ───── */}
+      {step === 2 && (
+        <div>
+          <div className="wizard-q" data-speak>How much crop do you have?</div>
+          <div className="wizard-help" data-speak>Weight in quintals (1 quintal = 100 kg)</div>
+
+          <div className="qty-stepper">
+            <button type="button" className="qty-btn" onClick={() => setQty(q => Math.max(0, q - 5))} aria-label="Less">−</button>
+            <input
+              className="qty-input"
+              inputMode="numeric"
+              value={qty || ''}
+              placeholder="0"
+              onChange={(e) => setQty(Math.min(9999, parseInt(e.target.value.replace(/\D/g, ''), 10) || 0))}
+              aria-label="Quintals"
+            />
+            <button type="button" className="qty-btn" onClick={() => setQty(q => Math.min(9999, q + 5))} aria-label="More">+</button>
+          </div>
+          <div className="qty-unit" data-speak>Quintals</div>
+
+          <div className="qty-chips">
+            {QTY_CHIPS.map((n) => (
+              <button key={n} type="button" className={`qty-chip${qty === n ? ' selected' : ''}`} onClick={() => setQty(n)}>{n}</button>
+            ))}
+          </div>
+
+          {msp && qty > 0 && (
+            <div className="msp-box">
+              <div className="msp-box-label">Approx. value at MSP</div>
+              <div className="msp-box-value" data-no-translate>{rupees(msp * qty)}</div>
+              <div className="msp-box-note">
+                <span data-no-translate>{rupees(msp)}</span> per quintal for <span data-no-translate>{cropName(crop)}</span> — final amount depends on weighing and quality check.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ───── Step 3: centre ───── */}
+      {step === 3 && (
+        <div>
+          <div className="wizard-q" data-speak>Which Mandi will you go to?</div>
+          <div className="centre-list">
+            {centres.map((c) => {
+              const full = c.status === 'PAUSED';
+              const dist = getDistance(currentUser.village, c.centreId);
+              const sel = centreId === c.centreId;
+              return (
+                <button key={c.centreId} type="button" disabled={full}
+                  className={`centre-card${sel ? ' selected' : ''}${full ? ' full' : ''}`} onClick={() => chooseCentre(c)}>
+                  <span className="centre-card-icon">🏛️</span>
+                  <span className="centre-card-body">
+                    <span className="centre-card-name" data-no-translate>{CENTRE_MAP[c.centreId] || c.name}</span>
+                    <span className="centre-card-meta">
+                      {dist !== null && <span>📍 ~{dist} km</span>}
+                      {c.centreId === nearestOpenId && <span className="chip chip-green">Nearest</span>}
+                      {full
+                        ? <span className="chip chip-red">🔴 Full</span>
+                        : <span className="chip chip-green">🟢 Open</span>}
+                    </span>
+                  </span>
+                  {sel && <span className="crop-tile-check" style={{ position: 'static' }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ───── Step 4: day and time ───── */}
+      {step === 4 && (
+        <div>
+          <div className="wizard-q" data-speak>Which day and time?</div>
+
+          <div className="wizard-sub">Day</div>
+          <div className="day-grid">
+            {dayOptions.map((d) => (
+              <button key={d.iso} type="button" className={`day-btn${dateISO === d.iso ? ' selected' : ''}`} onClick={() => { setDateISO(d.iso); setShowOtherDate(false); }}>
+                <span className="day-btn-label">{d.label}</span>
+                <span className="day-btn-date" data-no-translate>{d.text}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className="link-btn" onClick={() => setShowOtherDate(v => !v)}>📅 Another date</button>
+          {showOtherDate && (
+            <input type="date" className="form-control" style={{ marginTop: '8px', fontSize: '18px', minHeight: '52px' }}
+              value={dateISO} min={localISO(new Date())} onChange={(e) => setDateISO(e.target.value)} />
+          )}
+
+          <div className="wizard-sub" style={{ marginTop: '18px' }}>Time</div>
+          <div className="slot-big-grid">
+            {slots.map((slot, i) => (
+              <button key={slot.label} type="button" disabled={slot.status === 'full'}
+                className={`slot-big${selectedSlot === i ? ' selected' : ''}${slot.status === 'full' ? ' full' : ''}`}
+                onClick={() => setSelectedSlot(i)}>
+                <span>{slot.label}</span>
+                {slot.status === 'full' && <span className="chip chip-red">🔴 Full</span>}
+                {selectedSlot === i && <span>✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ───── Step 5: check and confirm ───── */}
+      {step === 5 && (
+        <div>
+          <div className="wizard-q" data-speak>Please check and confirm</div>
+          <div className="wizard-summary">
+            <SummaryRow icon={<CropIcon crop={crop} size={34} />} label="Crop" value={cropName(crop)} onEdit={() => setStep(1)} raw />
+            <SummaryRow icon="⚖️" label="Weight" value={`${qty} Quintals`} onEdit={() => setStep(2)} />
+            <SummaryRow icon="🏛️" label="Mandi" value={CENTRE_MAP[centreId] || selectedCentre?.name || centreId} onEdit={() => setStep(3)} raw />
+            <SummaryRow icon="📅" label="Day" value={dateText(dateISO)} onEdit={() => setStep(4)} raw />
+            <SummaryRow icon="🕐" label="Time" value={slots[selectedSlot]?.label || ''} onEdit={() => setStep(4)} />
+          </div>
+
+          {!currentUser.aadhaar && (
+            <div className="form-group" style={{ marginTop: '14px' }}>
+              <label className="form-label">Aadhaar Number <span className="required">*</span></label>
+              <input type="text" inputMode="numeric" className="form-control" placeholder="XXXX XXXX XXXX" maxLength="12"
+                value={aadhaar} onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, ''))}
+                style={{ fontSize: '20px', minHeight: '54px' }} />
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Crop Type <span className="required">*</span></label>
-                <select name="crop" className="form-control" value={form.crop} onChange={handleChange} required>
-                  <option value="">Select Crop</option>
-                  <option>Wheat</option>
-                  <option>Paddy</option>
-                  <option>Mustard</option>
-                  <option>Cotton</option>
-                  <option>Sunflower</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Weight (Quintals) <span className="required">*</span></label>
-                <input
-                  type="number"
-                  name="quantity"
-                  className="form-control"
-                  placeholder="e.g. 45"
-                  min="1"
-                  value={form.quantity}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Aadhaar Number <span className="required">*</span></label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  name="aadhaar"
-                  className="form-control"
-                  placeholder="XXXX XXXX XXXX"
-                  maxLength="12"
-                  value={form.aadhaar}
-                  onChange={handleChange}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  type="button"
-                  className={`btn ${aadhaarVerified ? 'btn-outline' : 'btn-primary'}`}
-                  onClick={verifyAadhaar}
-                  style={{ whiteSpace: 'nowrap', borderRadius: '10px' }}
-                >
-                  {aadhaarVerified ? '✅ Verified' : 'Verify'}
-                </button>
-              </div>
-              {aadhaarVerified && (
-                <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--green-600)', fontWeight: 500 }}>
-                  ✓ Aadhaar verified successfully
-                </div>
-              )}
-            </div>
-
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Procurement Centre <span className="required">*</span></label>
-                <select name="centreId" className="form-control" value={form.centreId} onChange={handleChange}>
-                  <option value="C001">Karnal Mandi</option>
-                  <option value="C002">Panipat Mandi</option>
-                  <option value="C003">Kurukshetra Mandi</option>
-                </select>
-                {(() => {
-                  const dist = getDistance(currentUser.village, form.centreId);
-                  return dist !== null ? (
-                    <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--green-700)', fontWeight: 500 }}>
-                      📍 ~{dist} km from your village ({currentUser.village})
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Preferred Date <span className="required">*</span></label>
-                <input
-                  type="date"
-                  name="date"
-                  className="form-control"
-                  value={form.date}
-                  onChange={handleChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Time Slot Picker */}
-            <div className="form-group">
-              <label className="form-label">Select Time Slot</label>
-              <div className="slot-grid">
-                {slots.map((slot, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className={`slot-pill ${
-                      slot.status === 'full' ? 'full' :
-                      selectedSlot === i ? 'selected' : ''
-                    }`}
-                    onClick={() => slot.status !== 'full' && setSelectedSlot(i)}
-                    disabled={slot.status === 'full'}
-                  >
-                    {slot.label}
-                    {slot.tag && (
-                      <div className="slot-tag">🔴 Full</div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg"
-              disabled={loading || centreStatus === 'PAUSED'}
-            >
-              {loading ? '⏳ Booking...' : '✓ Confirm Slot Booking'}
-            </button>
-          </form>
+          <button type="button" className="farmer-big-btn" onClick={handleSubmit} disabled={loading || centreStatus === 'PAUSED'}>
+            {loading ? '⏳ Booking…' : '✓ Confirm Booking'}
+          </button>
         </div>
+      )}
 
-        {/* Info Panel */}
-        <div>
-          <div className="card">
-            <div className="card-title">ℹ️ Booking Guide</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[
-                { icon: '📋', text: 'Bring your Aadhaar card to the Mandi gate' },
-                { icon: '🌾', text: 'Clean & dried crop will get higher MSP grade' },
-                { icon: '🕐', text: 'Arrive 15 min before your slot time' },
-                { icon: '📱', text: 'Show your token QR code at gate entry' },
-                { icon: '🚛', text: 'Ensure your trolley is properly weighed before arrival' },
-              ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '18px' }}>{item.icon}</span>
-                  <span style={{ fontSize: '13px', color: 'var(--gray-600)', lineHeight: 1.4 }}>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', border: '1.5px solid var(--orange-200)' }}>
-            <div className="card-title">📊 MSP Rates 2024-25</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {[
-                { crop: '🌾 Wheat',   rate: '₹2,275/Qtl' },
-                { crop: '🌾 Paddy',   rate: '₹2,300/Qtl' },
-                { crop: '🌻 Mustard', rate: '₹5,650/Qtl' },
-                { crop: '🌱 Cotton',  rate: '₹7,121/Qtl' },
-              ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: i < 3 ? '1px solid var(--orange-100)' : 'none' }}>
-                  <span style={{ color: 'var(--gray-700)' }}>{item.crop}</span>
-                  <span style={{ fontWeight: 700, color: 'var(--orange-700)' }}>{item.rate}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Back / Next */}
+      {step < STEPS && (
+        <div className="wizard-nav">
+          {step > 1 ? (
+            <button type="button" className="wizard-back" onClick={goBack}>← Back</button>
+          ) : <span />}
+          <button type="button" className="wizard-next" onClick={goNext} disabled={!canNext}>Next →</button>
         </div>
-      </div>
+      )}
+      {step === STEPS && (
+        <div className="wizard-nav" style={{ justifyContent: 'flex-start' }}>
+          <button type="button" className="wizard-back" onClick={goBack}>← Back</button>
+        </div>
+      )}
 
       {showModal && (
         <QRModal booking={booking} onClose={() => setShowModal(false)} phone={currentUser.phone} />
       )}
+    </div>
+  );
+}
+
+function SummaryRow({ icon, label, value, onEdit, raw }) {
+  return (
+    <div className="summary-row">
+      <span className="summary-icon">{icon}</span>
+      <span className="summary-text">
+        <span className="summary-label">{label}</span>
+        <span className="summary-value" {...(raw ? { 'data-no-translate': true } : {})}>{value}</span>
+      </span>
+      {onEdit && <button type="button" className="summary-edit" onClick={onEdit}>✏️</button>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
-import { speak, stopSpeaking, speechSupported } from '../utils/speech';
+import { speak, speakViaServer, stopSpeaking, speechSupported } from '../utils/speech';
 
 // Fixed labels so the button itself never depends on the translation service.
 const LISTEN = { en: 'Listen', hi: 'सुनें', pa: 'ਸੁਣੋ', or: 'ଶୁଣନ୍ତୁ', bn: 'শুনুন', mr: 'ऐका', gu: 'સાંભળો' };
@@ -63,14 +63,20 @@ function ListenButton() {
     let res;
     try {
       res = await speak(text, lang, () => setSpeaking(false));
+      // No voice for this language on the phone -> use the Bhashini voice from our server.
+      if (!res.ok && res.reason === 'no-voice') {
+        res = await speakViaServer(text, lang, () => setSpeaking(false));
+      }
     } catch {
       res = { ok: false, reason: 'error' };
     }
     if (!res.ok) {
       setSpeaking(false);
-      if (res.reason === 'no-voice') {
-        setHint('This phone does not have a voice for this language yet. Open phone Settings → Text-to-speech and install it, or ask the Mandi officer for help.');
-      }
+      setHint(
+        navigator.onLine
+          ? 'The voice could not be loaded right now. Please try again in a moment, or ask the Mandi officer for help.'
+          : 'No internet. The voice for this language needs internet on this phone. Please connect and try again, or ask the Mandi officer for help.'
+      );
     }
   };
 

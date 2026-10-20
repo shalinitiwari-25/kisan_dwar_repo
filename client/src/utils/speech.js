@@ -1,3 +1,5 @@
+import { ttsRequest } from '../services/api';
+
 // Text-to-speech helpers (browser SpeechSynthesis — free, no server, works on
 // Android Chrome using the phone's installed voices).
 
@@ -51,7 +53,13 @@ function splitSentences(text) {
   return text.split(/(?<=[.!?।])\s+/).map((s) => s.trim()).filter(Boolean);
 }
 
+// Each new "reading" gets a number; older readings stop when it changes.
+let playId = 0;
+let currentAudio = null;
+
 export function stopSpeaking() {
+  playId++;
+  if (currentAudio) { try { currentAudio.pause(); } catch { /* ignore */ } currentAudio = null; }
   if (speechSupported()) window.speechSynthesis.cancel();
 }
 
@@ -76,7 +84,7 @@ export async function speak(text, langCode, onEnd = () => {}) {
     return { ok: false, reason: 'no-voice' };
   }
 
-  synth.cancel();
+  stopSpeaking();
   const chunks = splitSentences(clean);
   chunks.forEach((chunk, i) => {
     const u = new SpeechSynthesisUtterance(chunk);
@@ -93,5 +101,74 @@ export async function speak(text, langCode, onEnd = () => {}) {
     }
     synth.speak(u);
   });
+  return { ok: true };
+}
+
+
+// ── Server voices (Bhashini) — used when the phone has no voice for the language ──
+
+function playBase64(b64, id) {
+  return new Promise((resolve) => {
+    if (id !== playId) return resolve();
+    const audio = new Audio(`data:audio/wav;base64,${b64}`);
+    currentAudio = audio;
+    audio.onended = () => resolve();
+    audio.onerror = () => resolve();
+    audio.play().catch(() => resolve());
+  });
+}
+
+function speakEnglishOnce(text, id) {
+  return new Promise((resolve) => {
+    if (id !== playId || !speechSupported()) return resolve();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-IN';
+    u.rate = 0.9;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    window.speechSynthesis.speak(u);
+  });
+}
+
+/**
+ * Read `text` using Bhashini voices from our server. Indian-script sentences
+ * are fetched as audio and played in order; any leftover English sentences are
+ * read by the phone's English voice.
+ * Returns { ok: boolean, reason?: 'empty' | 'server' }.
+ */
+export async function speakViaServer(text, langCode, onEnd = () => {}) {
+  // Server voices can't pronounce the Latin "K D" in token ids, so drop that bit.
+  const clean = cleanForSpeech(text).replace(/\bK D,\s*/g, '');
+  const sentences = splitSentences(clean);
+  const indic = sentences.filter(hasIndicScript).map((x) => x.slice(0, 400)).slice(0, 10);
+  if (!indic.length) return { ok: false, reason: 'empty' };
+
+  stopSpeaking();
+  const myId = playId;
+
+  let audio;
+  try {
+    const res = await ttsRequest(indic, langCode);
+    audio = res.data.audio;
+    if (!Array.isArray(audio) || !audio.some(Boolean)) return { ok: false, reason: 'server' };
+  } catch {
+    return { ok: false, reason: 'server' };
+  }
+  if (myId !== playId) return { ok: true }; // farmer pressed Stop / left the page meanwhile
+
+  (async () => {
+    let k = 0;
+    for (const sentence of sentences) {
+      if (myId !== playId) return;
+      if (hasIndicScript(sentence)) {
+        const b64 = audio[k++];
+        if (b64) await playBase64(b64, myId);
+      } else {
+        await speakEnglishOnce(sentence, myId);
+      }
+    }
+    if (myId === playId) onEnd();
+  })();
+
   return { ok: true };
 }
