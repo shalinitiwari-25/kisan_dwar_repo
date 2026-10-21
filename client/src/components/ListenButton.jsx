@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import Icon from './Icon';
 import { speak, speakViaServer, stopSpeaking, speechSupported } from '../utils/speech';
 
 // Fixed labels so the button itself never depends on the translation service.
@@ -89,7 +90,7 @@ function ListenButton() {
         aria-label={speaking ? 'Stop reading' : 'Read this screen aloud'}
         data-no-translate
       >
-        <span className="listen-btn-icon">{speaking ? '⏹️' : '🔊'}</span>
+        <span className="listen-btn-icon"><Icon name={speaking ? 'stop' : 'speaker'} size={22} /></span>
         <span>{speaking ? (STOP[lang] || STOP.en) : (LISTEN[lang] || LISTEN.en)}</span>
       </button>
       {hint && (

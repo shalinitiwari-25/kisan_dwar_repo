@@ -2353,3 +2353,107 @@ tr.highlighted td {
   .qty-input { width: 120px; height: 64px; font-size: 44px; }
   .day-btn-date { font-size: 12px; }
 }
+
+/* =====================================================================
+   STEP 4: visual polish — icons, colour, spacing, illustrations
+   ===================================================================== */
+:root {
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --radius-card: 20px;
+  --shadow-soft: 0 2px 10px rgba(22, 101, 52, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.icon { flex-shrink: 0; display: block; }
+
+/* gentle entrance for each screen / wizard step */
+@keyframes kd-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.main-content > div, .wizard-step { animation: kd-fade-up 0.28s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .main-content > div, .wizard-step { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}
+:focus-visible { outline: 3px solid var(--green-400); outline-offset: 2px; }
+
+/* status badge on Home */
+.farmer-status-icon {
+  width: 58px; height: 58px; border-radius: 50%; font-size: 0;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white;
+}
+.farmer-status--green  .farmer-status-icon { background: var(--green-600); }
+.farmer-status--yellow .farmer-status-icon { background: #f59e0b; }
+.farmer-status--gray   .farmer-status-icon { background: var(--gray-400); }
+
+/* tiles: icon in a soft circle */
+.home-tile-icon {
+  width: 72px; height: 72px; border-radius: 50%; font-size: 0;
+  display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.75);
+}
+.home-tile--green  .home-tile-icon { color: var(--green-700); }
+.home-tile--blue   .home-tile-icon { color: #1d4ed8; }
+.home-tile--orange .home-tile-icon { color: var(--orange-600); }
+.home-tile--purple .home-tile-icon { color: #6d28d9; }
+
+/* bottom bar icon */
+.bottom-nav-icon { font-size: 0; height: 26px; display: flex; align-items: center; }
+.listen-btn-icon { font-size: 0; display: flex; align-items: center; }
+
+/* empty state */
+.empty-state { text-align: center; max-width: 460px; margin: 0 auto; padding: 8px 0 16px; }
+.mandi-scene { width: 100%; max-width: 380px; height: auto; display: block; margin: 0 auto 16px; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.08)); }
+.empty-state-title { font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 800; color: var(--gray-900); }
+.empty-state-sub { font-size: 17px; color: var(--gray-600); margin-top: 6px; }
+
+/* payment page */
+.pay { max-width: 640px; margin: 0 auto; }
+.pay .page-title { display: flex; align-items: center; gap: 10px; }
+.pay-answer { border-radius: 22px; padding: 22px 20px; margin-bottom: 16px; text-align: center; border: 2px solid var(--gray-200); background: white; }
+.pay-answer--green  { background: var(--green-50); border-color: var(--green-400); }
+.pay-answer--yellow { background: #fffbeb; border-color: var(--amber-400); }
+.pay-answer-head { font-family: 'Outfit', sans-serif; font-size: 25px; font-weight: 800; line-height: 1.25; color: var(--gray-900); }
+.pay-answer-sub { font-size: 17px; color: var(--gray-600); margin-top: 4px; }
+.pay-answer-amount-label { margin-top: 18px; font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--gray-500); }
+.pay-answer-amount { font-family: 'Outfit', sans-serif; font-size: 46px; font-weight: 800; color: var(--green-700); line-height: 1.1; }
+.pay-answer-crop { font-size: 15px; color: var(--gray-600); margin-top: 4px; }
+
+.pay-steps { display: flex; flex-direction: column; }
+.pay-step { display: flex; gap: 14px; position: relative; padding-bottom: 18px; }
+.pay-step:last-child { padding-bottom: 0; }
+.pay-step::before { content: ''; position: absolute; left: 22px; top: 46px; bottom: -2px; width: 4px; border-radius: 2px; background: var(--gray-200); }
+.pay-step:last-child::before { display: none; }
+.pay-step--done::before { background: var(--green-500); }
+.pay-step-badge { width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--gray-100); color: var(--gray-400); border: 3px solid var(--gray-200); }
+.pay-step--done .pay-step-badge { background: var(--green-600); border-color: var(--green-600); color: white; }
+.pay-step--current .pay-step-badge { background: #fff7ed; border-color: #f59e0b; color: #b45309; box-shadow: 0 0 0 5px rgba(245,158,11,0.18); }
+.pay-step-body { padding-top: 2px; }
+.pay-step-title { font-size: 18px; font-weight: 800; color: var(--gray-900); line-height: 1.25; }
+.pay-step--todo .pay-step-title { color: var(--gray-500); }
+.pay-step-meta { font-size: 15px; color: var(--gray-600); margin-top: 2px; }
+.pay-here { display: inline-block; background: #f59e0b; color: white; border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 800; margin-right: 6px; }
+
+.pay-call { display: flex; align-items: center; gap: 14px; padding: 16px; margin: 16px 0; border-radius: 18px; text-decoration: none; background: var(--green-700); color: white; box-shadow: var(--shadow-green); }
+.pay-call-icon { width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pay-call > span:last-child { display: flex; flex-direction: column; }
+.pay-call-label { font-size: 15px; font-weight: 700; opacity: 0.92; }
+.pay-call-number { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; letter-spacing: 0.5px; }
+.pay-call-note { font-size: 13px; opacity: 0.85; }
+.pay-guarantee { background: #fff1f2; border: 2px solid #fecaca; border-radius: 16px; padding: 14px 16px; font-size: 15px; color: #6b7280; line-height: 1.45; }
+.pay-guarantee-title { font-size: 16px; font-weight: 800; color: #b91c1c; margin-bottom: 4px; }
+.pay-demo { margin-top: 16px; border: 2px dashed var(--gray-300); border-radius: 14px; padding: 10px 14px; background: white; }
+.pay-demo summary { cursor: pointer; font-weight: 700; color: var(--gray-600); }
+
+/* login: demo accounts tucked away */
+details.login-demo summary { cursor: pointer; list-style: none; }
+details.login-demo summary::-webkit-details-marker { display: none; }
+details.login-demo summary::after { content: ' ▾'; }
+details.login-demo[open] summary::after { content: ' ▴'; }
+
+/* phones: bigger, easier form fields and text */
+@media (max-width: 768px) {
+  body { font-size: 16px; }
+  .form-control { font-size: 18px; min-height: 54px; border-radius: 14px; }
+  .form-label { font-size: 16px; }
+  .card { border-radius: var(--radius-card); box-shadow: var(--shadow-soft); }
+  .card-title { font-size: 18px; }
+  .page-title { font-size: 24px; }
+  .page-subtitle { font-size: 16px; }
+  .login-card .btn, .login-card button[type="submit"] { min-height: 56px; font-size: 19px; }
+}

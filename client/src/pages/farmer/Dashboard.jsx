@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import Icon from '../../components/Icon';
 import StatCard from '../../components/StatCard';
 import { getCentre, getBookingsByCentre, getNotifications } from '../../services/api';
 import { getUser } from '../../utils/auth';
@@ -139,15 +140,15 @@ function Dashboard() {
   const processed = !!lastBooking && !loading && !error && queuePosition === null;
   let status;
   if (!lastBooking) {
-    status = { tone: 'gray', icon: '📋', title: 'You have no booking yet', sub: 'Book a slot to get your token.', cta: { to: '/farmer/booking', label: '📋 Book a Slot' } };
+    status = { tone: 'gray', iconName: 'book', title: 'You have no booking yet', sub: 'Book a slot to get your token.', cta: { to: '/farmer/booking', label: 'Book a Slot' } };
   } else if (processed) {
-    status = { tone: 'green', icon: '✅', title: 'Your token is done', sub: 'Check when your payment will arrive.', cta: { to: '/farmer/payment', label: '💳 See Payment' } };
+    status = { tone: 'green', iconName: 'check', title: 'Your token is done', sub: 'Check when your payment will arrive.', cta: { to: '/farmer/payment', label: 'See Payment' } };
   } else if (queuePosition && queuePosition <= 3) {
-    status = { tone: 'green', icon: '🟢', title: 'Go to the Mandi gate now', sub: `You are number ${queuePosition} in the line.`, cta: { to: '/farmer/queue', label: '🔢 Open Live Queue' } };
+    status = { tone: 'green', iconName: 'truck', title: 'Go to the Mandi gate now', sub: `You are number ${queuePosition} in the line.`, cta: { to: '/farmer/queue', label: 'Open Live Queue' } };
   } else if (queuePosition && queuePosition <= 8) {
-    status = { tone: 'yellow', icon: '🟡', title: 'Get ready to leave', sub: `You are number ${queuePosition} in the line.`, cta: { to: '/farmer/queue', label: '🔢 Open Live Queue' } };
+    status = { tone: 'yellow', iconName: 'clock', title: 'Get ready to leave', sub: `You are number ${queuePosition} in the line.`, cta: { to: '/farmer/queue', label: 'Open Live Queue' } };
   } else {
-    status = { tone: 'yellow', icon: '🟡', title: 'Your turn is later today', sub: 'No action needed yet.', cta: { to: '/farmer/queue', label: '🔢 Open Live Queue' } };
+    status = { tone: 'yellow', iconName: 'clock', title: 'Your turn is later today', sub: 'No action needed yet.', cta: { to: '/farmer/queue', label: 'Open Live Queue' } };
   }
 
   return (
@@ -191,7 +192,7 @@ function Dashboard() {
       {/* ── 1. The one thing to do now ───────────────────────────── */}
       <div className={`farmer-status farmer-status--${status.tone}`}>
         <div className="farmer-status-top">
-          <div className="farmer-status-icon">{status.icon}</div>
+          <div className="farmer-status-icon"><Icon name={status.iconName} size={30} /></div>
           <div>
             <div className="farmer-status-title" data-speak>{status.title}</div>
             <div className="farmer-status-sub" data-speak>{status.sub}</div>
@@ -251,15 +252,15 @@ function Dashboard() {
       {/* ── 2. Big tiles ─────────────────────────────────────────── */}
       <div className="home-tiles">
         <Link to="/farmer/booking" className="home-tile home-tile--green">
-          <span className="home-tile-icon">📋</span>
+          <span className="home-tile-icon"><Icon name="book" size={46} /></span>
           <span className="home-tile-label">Book a Slot</span>
         </Link>
         <Link to="/farmer/queue" className="home-tile home-tile--blue">
-          <span className="home-tile-icon">🔢</span>
+          <span className="home-tile-icon"><Icon name="queue" size={46} /></span>
           <span className="home-tile-label">Queue Status</span>
         </Link>
         <Link to="/farmer/payment" className="home-tile home-tile--orange">
-          <span className="home-tile-icon">💳</span>
+          <span className="home-tile-icon"><Icon name="wallet" size={46} /></span>
           <span className="home-tile-label">Payment Status</span>
         </Link>
         <button
@@ -267,7 +268,7 @@ function Dashboard() {
           className="home-tile home-tile--purple"
           onClick={() => window.dispatchEvent(new Event('kd-open-chatbot'))}
         >
-          <span className="home-tile-icon">💬</span>
+          <span className="home-tile-icon"><Icon name="chat" size={46} /></span>
           <span className="home-tile-label">Need Help?</span>
         </button>
       </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import EmptyState from '../../components/EmptyState';
 import QueueTable from '../../components/QueueTable';
 import { getBookingsByCentre, updateBookingStatus, confirmArrival } from '../../services/api';
 
@@ -35,16 +36,12 @@ function QueueStatus() {
 
   if (!lastBooking) {
     return (
-      <div>
-        <div className="page-header">
-          <div className="page-title">🔢 Live Queue Status</div>
-          <div className="page-subtitle">Track your real-time position in the queue</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <p style={{ color: 'var(--gray-500)', marginBottom: '16px' }}>You need an active booking to track a queue.</p>
-          <Link to="/farmer/booking" className="btn btn-primary">Book a slot</Link>
-        </div>
-      </div>
+      <EmptyState
+        title="You are not in a queue yet"
+        sub="Book a slot to get your token and see the live queue."
+        to="/farmer/booking"
+        label="Book a Slot"
+      />
     );
   }
 

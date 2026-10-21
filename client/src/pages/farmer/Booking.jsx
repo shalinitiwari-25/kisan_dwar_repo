@@ -322,7 +322,7 @@ function Booking() {
 
       {/* ───── Step 1: crop ───── */}
       {step === 1 && (
-        <div>
+        <div className="wizard-step">
           <div className="wizard-q" data-speak>Which crop are you bringing?</div>
           <div className="crop-grid">
             {CROPS.map((c) => (
@@ -338,7 +338,7 @@ function Booking() {
 
       {/* ───── Step 2: weight ───── */}
       {step === 2 && (
-        <div>
+        <div className="wizard-step">
           <div className="wizard-q" data-speak>How much crop do you have?</div>
           <div className="wizard-help" data-speak>Weight in quintals (1 quintal = 100 kg)</div>
 
@@ -376,7 +376,7 @@ function Booking() {
 
       {/* ───── Step 3: centre ───── */}
       {step === 3 && (
-        <div>
+        <div className="wizard-step">
           <div className="wizard-q" data-speak>Which Mandi will you go to?</div>
           <div className="centre-list">
             {centres.map((c) => {
@@ -407,7 +407,7 @@ function Booking() {
 
       {/* ───── Step 4: day and time ───── */}
       {step === 4 && (
-        <div>
+        <div className="wizard-step">
           <div className="wizard-q" data-speak>Which day and time?</div>
 
           <div className="wizard-sub">Day</div>
@@ -442,7 +442,7 @@ function Booking() {
 
       {/* ───── Step 5: check and confirm ───── */}
       {step === 5 && (
-        <div>
+        <div className="wizard-step">
           <div className="wizard-q" data-speak>Please check and confirm</div>
           <div className="wizard-summary">
             <SummaryRow icon={<CropIcon crop={crop} size={34} />} label="Crop" value={cropName(crop)} onEdit={() => setStep(1)} raw />

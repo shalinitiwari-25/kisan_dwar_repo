@@ -76,6 +76,8 @@ function Login() {
               <span style={{ fontSize: '14px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>+91</span>
               <input
                 type="text"
+                inputMode="numeric"
+                autoComplete="tel-national"
                 className="form-control"
                 placeholder="10-digit mobile number"
                 maxLength={10}
@@ -109,8 +111,8 @@ function Login() {
           </Link>
         </div>
 
-        <div className="login-demo">
-          <div className="login-demo-label">Demo accounts (password: <strong>password123</strong>)</div>
+        <details className="login-demo">
+          <summary className="login-demo-label">Demo accounts (password: <strong>password123</strong>)</summary>
           <div className="login-demo-list">
             {DEMO_ACCOUNTS.map((acc) => (
               <button
@@ -123,7 +125,7 @@ function Login() {
               </button>
             ))}
           </div>
-        </div>
+        </details>
       </div>
     </div>
   );

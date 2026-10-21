@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import Icon from '../../components/Icon';
+import EmptyState from '../../components/EmptyState';
 import { createPayment, getPayment, updatePayment } from '../../services/api';
 
 const MSP_RATE = { Wheat: 2275, Paddy: 2300, Mustard: 5650, Cotton: 7121, Sunflower: 6760 };
@@ -35,16 +36,12 @@ function PaymentStatus() {
 
   if (!lastBooking) {
     return (
-      <div>
-        <div className="page-header">
-          <div className="page-title">💳 Payment Status</div>
-          <div className="page-subtitle">Track your MSP payment pipeline</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <p style={{ color: 'var(--gray-500)', marginBottom: '16px' }}>No active booking to show payment for.</p>
-          <Link to="/farmer/booking" className="btn btn-primary">Book a slot</Link>
-        </div>
-      </div>
+      <EmptyState
+        title="No payment to show yet"
+        sub="Your payment appears here after you book a slot and your crop is weighed."
+        to="/farmer/booking"
+        label="Book a Slot"
+      />
     );
   }
 
@@ -84,95 +81,98 @@ function PaymentStatus() {
     }
   };
 
+  // The old "J-Form generated" and "DBT initiated" steps always changed together,
+  // so farmers now see them as one step: "Payment sent to bank" (5 steps in total).
   const stages = [
-    { icon: '🚛', title: 'Crop Arrived at Mandi', meta: payment ? 'Confirmed at gate' : 'Awaiting gate entry', done: !!payment },
-    { icon: '⚖️', title: `Weighment Completed — ${lastBooking.quantity} Quintals`, meta: stage2 ? 'Weighed and logged' : 'Pending', done: !!stage2 },
-    { icon: '🔬', title: 'Quality Check Passed', meta: stage3 ? 'Quality verified' : 'Pending', done: !!stage3 },
-    { icon: '📄', title: 'J-Form Generated', meta: stage4 ? 'Form issued' : 'Pending', done: !!stage4 },
-    { icon: '🏦', title: 'DBT Initiated — Processing at Bank', meta: stage5 ? 'With bank' : 'Pending', done: !!stage5, active: stage5 && !stage6 },
-    { icon: '💰', title: 'Amount Credited to Account', meta: stage6 ? 'Credited' : 'Pending — Expected within 72 hours', done: !!stage6 },
+    { icon: 'truck',  title: 'Crop arrived at the Mandi', meta: payment ? 'Confirmed at the gate' : 'Waiting for gate entry', done: !!payment },
+    { icon: 'scale',  title: `Crop weighed — ${lastBooking.quantity} quintals`, meta: stage2 ? 'Weight recorded' : 'Not yet', done: !!stage2 },
+    { icon: 'flask',  title: 'Quality checked', meta: stage3 ? 'Quality passed' : 'Not yet', done: !!stage3 },
+    { icon: 'bank',   title: 'Payment sent to your bank', meta: stage5 ? 'With the bank now' : 'Not yet', done: !!stage5 },
+    { icon: 'rupee',  title: 'Money in your bank account', meta: stage6 ? 'Money credited' : stage5 ? 'On the way — within 72 hours' : 'Not yet', done: !!stage6, active: !!stage5 && !stage6 },
   ];
+  const currentIdx = stages.findIndex((st) => !st.done);
+
+  // One plain sentence answering "where is my money?"
+  let headline, subline, tone;
+  if (stage6) {
+    headline = 'Money credited to your bank!'; subline = 'Please check your bank account.'; tone = 'green';
+  } else if (stage5) {
+    headline = 'Your payment is on its way to your bank'; subline = 'It should arrive within 72 hours.'; tone = 'yellow';
+  } else if (payment) {
+    headline = 'Your crop is being checked at the Mandi'; subline = 'Payment starts after the quality check.'; tone = 'yellow';
+  } else {
+    headline = 'Payment has not started yet'; subline = 'It starts after your crop is weighed at the Mandi.'; tone = 'gray';
+  }
 
   return (
-    <div>
+    <div className="pay">
       <div className="page-header">
-        <div className="page-title">💳 Payment Status</div>
-        <div className="page-subtitle">Track your MSP payment pipeline — Token {lastBooking.tokenId}</div>
+        <div className="page-title"><Icon name="wallet" size={26} /> Payment</div>
+        <div className="page-subtitle">Token <span data-no-translate>{lastBooking.tokenId}</span></div>
       </div>
 
-      {error && (
-        <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#b91c1c', fontSize: '13px' }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="wizard-error">{error}</div>}
 
-      {/* Payment Summary */}
-      <div className="payment-summary-box">
-        <div className="payment-amount-label">TOTAL PAYMENT AMOUNT</div>
-        <div className="payment-amount">₹{amount.toLocaleString('en-IN')}</div>
-        <div className="payment-detail-row">
-          <div className="payment-detail-item">🌾 <strong>{lastBooking.crop}</strong> • {lastBooking.quantity} Quintals</div>
-          <div className="payment-detail-item">MSP: <strong>₹{rate.toLocaleString('en-IN')}/Qtl</strong></div>
-          <div className="payment-detail-item">Status: <strong>{payment?.status ?? 'Not started'}</strong></div>
-        </div>
-
-        <div style={{ marginTop: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <span className={`badge ${stage6 ? 'badge-green' : stage5 ? 'badge-orange' : 'badge-gray'}`}>
-            <span className="badge-dot"></span>
-            {stage6 ? 'Credited' : stage5 ? 'DBT Processing' : 'Not started'}
-          </span>
-          {stage3 && <span className="badge badge-green">✓ Quality Checked</span>}
-          {stage4 && <span className="badge badge-green">✓ J-Form Generated</span>}
+      {/* Where is my money? */}
+      <div className={`pay-answer pay-answer--${tone}`}>
+        <div className="pay-answer-head" data-speak>{headline}</div>
+        <div className="pay-answer-sub" data-speak>{subline}</div>
+        <div className="pay-answer-amount-label">Amount you will receive</div>
+        <div className="pay-answer-amount" data-no-translate data-speak>{`₹${amount.toLocaleString('en-IN')}`}</div>
+        <div className="pay-answer-crop">
+          <span data-no-translate>{lastBooking.crop}</span> · {lastBooking.quantity} quintals · MSP <span data-no-translate>₹{rate.toLocaleString('en-IN')}</span>/quintal
         </div>
       </div>
 
-      <div className="grid-2" style={{ alignItems: 'start' }}>
-        {/* Payment Timeline */}
-        <div className="card">
-          <div className="card-title">📊 Payment Pipeline</div>
-          <div className="payment-timeline">
-            {stages.map((stage, i) => (
-              <div key={i} className="timeline-item" style={{ animationDelay: `${i * 0.1}s` }}>
-                <div className={`timeline-dot ${stage.done ? 'done' : stage.active ? 'active' : 'pending'}`}>
-                  {stage.done ? '✓' : stage.active ? '⋯' : ''}
+      {/* 5 steps */}
+      <div className="card">
+        <div className="card-title">Where is my payment?</div>
+        <div className="pay-steps">
+          {stages.map((st, i) => {
+            const state = st.done ? 'done' : i === currentIdx ? 'current' : 'todo';
+            return (
+              <div key={i} className={`pay-step pay-step--${state}`}>
+                <div className="pay-step-badge">
+                  {st.done ? <Icon name="check" size={22} stroke={3} /> : <Icon name={st.icon} size={22} />}
                 </div>
-                <div className={`timeline-content ${stage.done ? 'done' : ''}`}>
-                  <div className="timeline-title">{stage.icon} {stage.title}</div>
-                  <div className="timeline-meta">{stage.meta}</div>
+                <div className="pay-step-body">
+                  <div className="pay-step-title">{st.title}</div>
+                  <div className="pay-step-meta">
+                    {state === 'current' ? <span className="pay-here">You are here</span> : null} {st.meta}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {!stage6 && (
-            <button className="btn btn-outline w-full" onClick={advance} disabled={busy} style={{ marginTop: '10px' }}>
-              {busy ? '⏳ Updating…' : '⚡ Simulate Next Stage (demo)'}
-            </button>
-          )}
+            );
+          })}
         </div>
+      </div>
 
+      {/* Help */}
+      <a className="pay-call" href="tel:18001802087">
+        <span className="pay-call-icon"><Icon name="phone" size={28} /></span>
+        <span>
+          <span className="pay-call-label">Payment late? Call the helpline</span>
+          <span className="pay-call-number" data-no-translate>1800-180-2087</span>
+          <span className="pay-call-note">Toll free · 24×7</span>
+        </span>
+      </a>
+
+      <div className="pay-guarantee">
+        <div className="pay-guarantee-title">⚠️ 72-hour payment promise</div>
         <div>
-          <div className="helpline-card">
-            <div className="helpline-icon">📞</div>
-            <div>
-              <div className="helpline-label">Payment Delayed? Contact Food Dept Helpline</div>
-              <div className="helpline-number">1800-180-2087</div>
-              <div style={{ fontSize: '11px', color: 'var(--orange-500)', marginTop: '2px', fontWeight: 600 }}>
-                Toll Free • 24×7 Available
-              </div>
-            </div>
-          </div>
-
-          <div style={{ background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '14px 16px', marginTop: '16px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#b91c1c', marginBottom: '4px' }}>
-              ⚠️ 72-Hour Payment Guarantee
-            </div>
-            <div style={{ fontSize: '12px', color: '#6b7280' }}>
-              As per RMS guidelines, payment must be credited within 72 hours of J-Form generation. If delayed, 9% annual interest applies automatically.
-            </div>
-          </div>
+          As per RMS guidelines, payment must be credited within 72 hours of J-Form generation. If delayed, 9% annual interest applies automatically.
         </div>
       </div>
+
+      {/* Demo tools, out of the way */}
+      {!stage6 && (
+        <details className="pay-demo">
+          <summary>Demo tools</summary>
+          <button className="btn btn-outline w-full" onClick={advance} disabled={busy} style={{ marginTop: '10px' }}>
+            {busy ? '⏳ Updating…' : '⚡ Simulate Next Stage (demo)'}
+          </button>
+        </details>
+      )}
 
       {loading && <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>Loading payment status…</p>}
     </div>
