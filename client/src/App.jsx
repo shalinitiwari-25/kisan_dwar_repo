@@ -9,6 +9,7 @@ import ListenButton from './components/ListenButton';
 import LanguageWelcome from './components/LanguageWelcome';
 import ProtectedRoute from './components/ProtectedRoute';
 import FarmerChatbot from './components/FarmerChatbot';
+import { ChatbotProvider } from './context/ChatbotContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { getRole } from './utils/auth';
@@ -18,6 +19,8 @@ import FarmerDashboard from './pages/farmer/Dashboard';
 import Booking         from './pages/farmer/Booking';
 import QueueStatus     from './pages/farmer/QueueStatus';
 import PaymentStatus   from './pages/farmer/PaymentStatus';
+import History         from './pages/farmer/History';
+import Profile         from './pages/farmer/Profile';
 
 // Officer
 import OfficerDashboard from './pages/officer/OfficerDashboard';
@@ -47,7 +50,7 @@ function AppShell() {
   useEffect(() => { setNavOpen(false); }, [location.pathname]);
 
   return (
-    <>
+    <ChatbotProvider>
       <Navbar onMenuClick={() => setNavOpen(o => !o)} />
 
       <div className="app-layout">
@@ -67,6 +70,13 @@ function AppShell() {
             } />
             <Route path="/farmer/payment" element={
               <ProtectedRoute allowedRole="farmer"><PaymentStatus /></ProtectedRoute>
+            } />
+
+            <Route path="/farmer/history" element={
+              <ProtectedRoute allowedRole="farmer"><History /></ProtectedRoute>
+            } />
+            <Route path="/farmer/profile" element={
+              <ProtectedRoute allowedRole="farmer"><Profile /></ProtectedRoute>
             } />
 
             {/* Officer */}
@@ -107,7 +117,7 @@ function AppShell() {
       {isFarmer && <BottomNav />}
       {isFarmer && <ListenButton />}
       {isFarmer && <FarmerChatbot />}
-    </>
+    </ChatbotProvider>
   );
 }
 

@@ -5,6 +5,8 @@ const farmerLinks = [
   { to: '/farmer/booking',  icon: '📋', label: 'Book a Slot' },
   { to: '/farmer/queue',    icon: '🔢', label: 'Queue Status' },
   { to: '/farmer/payment',  icon: '💳', label: 'Payment Status' },
+  { to: '/farmer/history',  icon: '🕘', label: 'My History' },
+  { to: '/farmer/profile',  icon: '👤', label: 'My Profile' },
 ];
 
 const officerLinks = [

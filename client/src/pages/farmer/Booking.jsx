@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import QRModal from '../../components/QRModal';
 import CropIcon from '../../components/CropIcon';
-import { createBooking, getCentre, getAllCentres, updateBookingStatus } from '../../services/api';
+import { createBooking, getCentre, getAllCentres, cancelBooking } from '../../services/api';
 import { getUser } from '../../utils/auth';
 import { getDistance } from '../../utils/distanceTable';
 import { useLanguage } from '../../context/LanguageContext';
@@ -67,6 +67,7 @@ function Booking() {
   const [error, setError] = useState('');
   const [suggestedCentre, setSuggestedCentre] = useState(null);
   const [existingBooking, setExistingBooking] = useState(null);
+  const [profileMissing, setProfileMissing] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [booking, setBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -151,6 +152,7 @@ function Booking() {
     setError('');
     setSuggestedCentre(null);
     setExistingBooking(null);
+    setProfileMissing(null);
 
     if (!crop || !qty || !centreId || !dateISO || selectedSlot === null) {
       setError('Please complete all the steps.');
@@ -168,11 +170,11 @@ function Booking() {
     setLoading(true);
     try {
       const res = await createBooking({
-        farmerName: currentUser.name || 'Farmer',
-        aadhaar,
         crop,
         quantity: parseInt(qty, 10),
         centreId,
+        slotDate: dateISO,
+        slotLabel: slots[selectedSlot]?.label,
       });
 
       const created = res.data;
@@ -199,7 +201,10 @@ function Booking() {
       const data = err.response?.data;
       const msg = data?.message || '';
 
-      if (err.response?.status === 400 && data?.centreStatus === 'PAUSED') {
+      if (err.response?.status === 403 && data?.code === 'PROFILE_INCOMPLETE') {
+        setError(`📝 ${msg}`);
+        setProfileMissing(data.missing || []);
+      } else if (err.response?.status === 400 && data?.centreStatus === 'PAUSED') {
         setError('⚠️ Centre is currently FULL. Bookings are paused.');
         setCentreStatus('PAUSED');
         setSuggestedCentre(data.suggestedCentre || null);
@@ -221,7 +226,10 @@ function Booking() {
     if (!existingBooking?._id) return;
     setCancelling(true);
     try {
-      await updateBookingStatus(existingBooking._id, 'cancelled');
+      await cancelBooking(existingBooking._id, 'Cancelled by farmer to rebook');
+      try {
+        if (JSON.parse(localStorage.getItem('kd_lastBooking'))?.id === existingBooking._id) localStorage.removeItem('kd_lastBooking');
+      } catch { /* ignore */ }
       setError('');
       setExistingBooking(null);
     } catch {
@@ -280,6 +288,15 @@ function Booking() {
 
   return (
     <div className="wizard">
+      {currentUser.profileComplete === false && (
+        <div className="profile-nudge">
+          <div className="profile-nudge-text" data-speak>
+            <strong>Complete your profile</strong> before booking.
+          </div>
+          <Link to="/farmer/profile" state={{ onboarding: true }} className="btn btn-primary btn-sm">Open Profile</Link>
+        </div>
+      )}
+
       {/* Progress */}
       <div className="wizard-progress" aria-label={`Step ${step} of ${STEPS}`}>
         <div className="wizard-progress-text">Step {step} of {STEPS}</div>
@@ -293,6 +310,11 @@ function Booking() {
       {error && (
         <div className="wizard-error">
           {error}
+          {profileMissing && (
+            <div style={{ marginTop: '10px' }}>
+              <Link to="/farmer/profile" state={{ onboarding: true }} className="btn btn-primary btn-sm">Complete my profile →</Link>
+            </div>
+          )}
           {existingBooking && (
             <div style={{ marginTop: '10px' }}>
               <button type="button" className="btn btn-outline btn-sm" onClick={handleCancelExisting} disabled={cancelling}

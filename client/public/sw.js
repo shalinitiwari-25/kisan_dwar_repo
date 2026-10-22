@@ -4,7 +4,7 @@
  * - /api/* is NEVER cached (live queue, auth, payments must be fresh and private).
  * Bump CACHE_VERSION on each release to drop old caches.
  */
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const SHELL_CACHE = `kd-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `kd-assets-${CACHE_VERSION}`;
 const SHELL_URLS = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png', '/icon-512.png'];

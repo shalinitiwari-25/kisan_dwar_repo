@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getAllCentres, getBookingsByCentre, updateBookingStatus } from '../../services/api';
 import { getUser } from '../../utils/auth';
+import FarmerDetailsModal from '../../components/FarmerDetailsModal';
 
 function CapacityControl() {
+  const [detailsFor, setDetailsFor] = useState('');
   const assignedCentres = getUser().assignedCentres || [];
   const [centreId, setCentreId] = useState(
     (assignedCentres.includes(localStorage.getItem('kd_officerCentre')) && localStorage.getItem('kd_officerCentre'))
@@ -143,6 +145,10 @@ function CapacityControl() {
                 ))}
               </div>
 
+              <button className="btn btn-outline" style={{ width: '100%', marginBottom: '12px' }} onClick={() => setDetailsFor(result.aadhaar)}>
+                🧑‍🌾 View farmer details &amp; documents
+              </button>
+
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button className="btn btn-primary" style={{ flex: 1 }} disabled={acting || result.status !== 'booked'} onClick={() => act('arrived')}>
                   ✅ Allow Gate Entry
@@ -185,6 +191,7 @@ function CapacityControl() {
           </div>
         )}
       </div>
+      {detailsFor && <FarmerDetailsModal aadhaar={detailsFor} onClose={() => setDetailsFor('')} />}
     </div>
   );
 }

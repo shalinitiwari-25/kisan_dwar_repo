@@ -14,6 +14,8 @@ const PATHS = {
   scale:  <path d="M12 3v18M5 7h14M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z" />,
   flask:  <path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3" />,
   clock:  <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  history:<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2M3 12h3M4.5 7.5L7 10" /></>,
+  user:   <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></>,
   rupee:  <path d="M6 4h12M6 9h12M9 4c4 0 6 2 6 4.5S13 13 9 13H6l8 8" />,
 };
 

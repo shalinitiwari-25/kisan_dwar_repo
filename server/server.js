@@ -39,7 +39,7 @@ connectDB().then(async () => {
     const passwordHash = await bcrypt.hash('password123', 10);
     await User.insertMany([
       // Farmers — one KPP-verified, one not, so the Farmer Registry demo has both states
-      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer', phone: '9876543210', aadhaar: '123456789012', address: 'Village Dhanora, Karnal, Haryana', bankAccount: '****4321 (Punjab National Bank)', status: 'active', kppVerified: true, kppVerifiedBy: 'Amit Sharma', kppVerifiedAt: new Date() },
+      { name: 'Ramesh Kumar', email: 'farmer@test.com', password: passwordHash, role: 'farmer', phone: '9876543210', aadhaar: '123456789012', address: 'Village Dhanora, Karnal, Haryana', village: 'Dhanora', district: 'Karnal', state: 'Haryana', kisanId: 'KP-2025-HR-00429', bankAccount: '****4321 (Punjab National Bank)', status: 'active', kppVerified: true, kppVerifiedBy: 'Amit Sharma', kppVerifiedAt: new Date() },
       { name: 'Suman Devi',   email: '9998887771@kisan.in', password: passwordHash, role: 'farmer', phone: '9998887771', aadhaar: '223456789013', village: 'Dhanora', district: 'Karnal', status: 'active', kppVerified: false },
       // Officer — already approved & assigned to C001 + C002 (not C003, to demo the restriction)
       { name: 'Amit Sharma',  email: 'officer@test.com', password: passwordHash, role: 'officer', phone: '9876500001', aadhaar: '000000000001', status: 'active', assignedCentres: ['C001', 'C002'], approvedBy: 'Priya Gupta', approvedAt: new Date() },
@@ -67,7 +67,7 @@ connectDB().then(async () => {
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '4mb' })); // profile documents arrive as small base64 files
 app.get('/api/test', (req, res) => res.send('test works'));
 // Test route
 app.get('/', (req, res) => {

@@ -1,16 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../services/api';
-import { saveToken, saveRole, saveUser } from '../utils/auth';
+import { saveToken, saveRole, saveUser, postLoginPath } from '../utils/auth';
 import logo from '../assets/logo.png';
 import LanguageToggle from '../components/LanguageToggle';
-
-// Where each role lands after a successful login
-const ROLE_HOME = {
-  farmer: '/farmer',
-  officer: '/officer',
-  government: '/government',
-};
 
 const DEMO_ACCOUNTS = [
   { role: 'Farmer',     phone: '9876543210' },
@@ -34,7 +27,7 @@ function Login() {
       saveToken(res.data.token);
       saveRole(res.data.user.role);
       saveUser(res.data.user); // persist name / phone / aadhaar
-      navigate(ROLE_HOME[res.data.user.role] || '/farmer', { replace: true });
+      navigate(postLoginPath(res.data.user), { replace: true, state: { onboarding: true } });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

@@ -140,6 +140,7 @@ async function notifyPausedAndRebook(centre) {
 
   for (const booking of stranded) {
     booking.status = 'cancelled';
+    booking._historyNote = `${centre.name} stopped taking crops today`;
     await booking.save();
 
     const oldTokenId = `KD-${String(booking.tokenNo).padStart(5, '0')}`;
@@ -159,6 +160,10 @@ async function notifyPausedAndRebook(centre) {
         centreId: alternative.centreId,
         tokenNo: newTokenNo,
         status: 'booked',
+        slotDate: booking.slotDate,
+        slotLabel: booking.slotLabel,
+        farmerSnapshot: booking.farmerSnapshot,
+        _historyNote: `Moved from ${oldTokenId} (${centre.name} stopped today)`,
       });
       const newTokenId = `KD-${String(newTokenNo).padStart(5, '0')}`;
 

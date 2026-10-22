@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import { useChatbot } from '../context/ChatbotContext';
+import { useSpeaker, plainText } from '../hooks/useSpeaker';
+import { stopSpeaking, speechSupported } from '../utils/speech';
+import Icon from './Icon';
+import { LISTEN, STOP } from './ListenButton';
 
 /* ─── Demo Q&A Knowledge Base ─────────────────────────────────────── */
 const FAQ = [
@@ -33,7 +39,7 @@ const FAQ = [
   },
   {
     q: 'How do I cancel my booking?',
-    a: 'Currently cancellations are handled by the Mandi officer. Please contact your nearest Mandi centre or call the helpline. Auto-cancellation happens if you don\'t arrive within your slot window.',
+    a: 'Open "History" from the bottom menu. Your current booking is shown on top with a "Cancel booking" button. You can cancel while your token is still waiting. If you don\'t arrive within your slot window, the booking is cancelled automatically.',
   },
   {
     q: 'What is MSP?',
@@ -41,13 +47,25 @@ const FAQ = [
   },
   {
     q: 'How do I register on Kisan Dwar?',
-    a: 'Click "Register" on the login page. You\'ll need your Aadhaar number, phone number, village, district, and bank account details. Verification usually takes 1–2 minutes.',
+    a: 'Click "Register" on the login page. You\'ll need your Aadhaar number and phone number. After login, fill in your Profile (Kisan ID, village, bank details and documents) so you can book.',
+  },
+  {
+    q: 'What documents do I need to book?',
+    keys: ['document', 'documents', 'upload', 'passbook', 'khasra', 'photo'],
+    a: 'Open "Profile" and go to the Documents step. Upload your Aadhaar card and Kisan ID (needed to book). Land record, bank passbook and a passport photo are also helpful. Take a clear photo or choose a file under 1 MB.',
+  },
+  {
+    q: 'How do I fill my profile?',
+    keys: ['profile', 'kisan id', 'edit', 'details'],
+    a: 'Tap your picture at the top left, or "Profile" in the bottom menu. Fill each step — Personal, Kisan & Land, Bank, Documents — then press Save. The bar at the top shows what is still missing.',
   },
 ];
 
 /* ─── Fuzzy-match user input to FAQ ───────────────────────────────── */
 function findAnswer(input) {
   const text = input.toLowerCase();
+  const keyed = FAQ.find(({ keys }) => keys && keys.some((k) => text.includes(k)));
+  if (keyed) return keyed.a;
   const match = FAQ.find(({ q }) =>
     q.toLowerCase().split(' ').some(word => word.length > 3 && text.includes(word))
   );
@@ -97,7 +115,10 @@ function useSpeechRecognition(onResult) {
 
 /* ─── Main Chatbot Component ──────────────────────────────────────── */
 export default function FarmerChatbot() {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useChatbot();
+  const { lang } = useLanguage();
+  const { speaking, hint, setHint, say, stop } = useSpeaker(lang);
+  const windowRef = useRef(null);
   const onHome = useLocation().pathname === '/farmer'; // Home has its own "Need Help?" tile
   const [messages, setMessages] = useState([
     {
@@ -110,12 +131,19 @@ export default function FarmerChatbot() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
-  /* Let other screens (e.g. the Help tile on Home) open the bot */
-  useEffect(() => {
-    const openBot = () => setOpen(true);
-    window.addEventListener('kd-open-chatbot', openBot);
-    return () => window.removeEventListener('kd-open-chatbot', openBot);
-  }, []);
+  /* Stop reading when the chat closes or the language changes */
+  useEffect(() => { if (!open) { stopSpeaking(); setHint(''); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { stop(); }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Read from the DOM so the farmer hears the translated text they see */
+  const readBubble = (bubbleEl) => {
+    if (speaking) { stop(); return; }
+    if (bubbleEl) say(plainText(bubbleEl));
+  };
+  const readLatest = () => {
+    const bubbles = windowRef.current?.querySelectorAll('.chatbot-bubble--bot:not(.chatbot-typing)');
+    readBubble(bubbles && bubbles[bubbles.length - 1]);
+  };
 
   /* Auto-scroll to latest message */
   useEffect(() => {
@@ -171,7 +199,7 @@ export default function FarmerChatbot() {
 
       {/* ── Chat Window ─────────────────────────────────────── */}
       {open && (
-        <div className="chatbot-window">
+        <div className="chatbot-window" ref={windowRef}>
           {/* Header */}
           <div className="chatbot-header">
             <div className="chatbot-header-avatar">🌾</div>
@@ -182,6 +210,18 @@ export default function FarmerChatbot() {
                 Kisan Dwar Assistant
               </div>
             </div>
+            {speechSupported() && (
+              <button
+                type="button"
+                className={`chatbot-listen-btn${speaking ? ' chatbot-listen-btn--on' : ''}`}
+                onClick={readLatest}
+                aria-label={speaking ? 'Stop reading' : 'Listen to the answer'}
+                data-no-translate
+              >
+                <Icon name={speaking ? 'stop' : 'speaker'} size={16} />
+                <span>{speaking ? (STOP[lang] || STOP.en) : (LISTEN[lang] || LISTEN.en)}</span>
+              </button>
+            )}
             <button
               className="chatbot-close-btn"
               onClick={() => setOpen(false)}
@@ -204,8 +244,21 @@ export default function FarmerChatbot() {
                 <div className={`chatbot-bubble ${msg.from === 'user' ? 'chatbot-bubble--user' : 'chatbot-bubble--bot'}`}>
                   {msg.text}
                 </div>
+                {msg.from === 'bot' && speechSupported() && (
+                  <button
+                    type="button"
+                    className="chatbot-speak-btn"
+                    onClick={(e) => readBubble(e.currentTarget.parentElement.querySelector('.chatbot-bubble'))}
+                    aria-label="Listen to this message"
+                    data-no-translate
+                  >
+                    <Icon name="speaker" size={16} />
+                  </button>
+                )}
               </div>
             ))}
+
+            {hint && <div className="chatbot-hint" onClick={() => setHint('')}>{hint}</div>}
 
             {/* Typing indicator */}
             {typing && (

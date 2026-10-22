@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const Booking = require('../models/Booking');
+const { fullProfile } = require('../utils/profile');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // Writes an audit entry. Never allowed to break the calling request —
@@ -139,7 +141,7 @@ router.get('/farmers', requireAuth, requireRole('officer', 'government'), async 
     }
 
     const farmers = await User.find(filter)
-      .select('name phone aadhaar village district kppVerified kppVerifiedBy kppVerifiedAt createdAt')
+      .select('name phone aadhaar kisanId village district kppVerified kppVerifiedBy kppVerifiedAt createdAt')
       .sort({ createdAt: -1 })
       .limit(100);
 
@@ -163,6 +165,61 @@ router.patch('/farmers/:userId/verify-kpp', requireAuth, requireRole('officer', 
     await logAction(req.user, verified ? 'KPP_VERIFIED' : 'KPP_UNVERIFIED', target.name, `Aadhaar ${target.aadhaar}`);
 
     res.json(target);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Officers may only see/verify farmers who have booked at one of their
+// assigned centres. Government sees everyone.
+async function officerCanAccess(reqUser, aadhaar) {
+  if (reqUser.role === 'government') return true;
+  const hit = await Booking.exists({ aadhaar, centreId: { $in: reqUser.assignedCentres || [] } });
+  return !!hit;
+}
+
+// ── GET /api/admin/farmer-profile?aadhaar=... — full farmer record ────────
+router.get('/farmer-profile', requireAuth, requireRole('officer', 'government'), async (req, res) => {
+  try {
+    const aadhaar = String(req.query.aadhaar || '').trim();
+    const farmer = await User.findOne({ aadhaar, role: 'farmer' });
+    if (!farmer) return res.status(404).json({ message: 'Farmer not found.' });
+    if (!(await officerCanAccess(req.user, aadhaar))) {
+      return res.status(403).json({ message: 'This farmer has not booked at your assigned centres.' });
+    }
+    const bookings = await Booking.find({ aadhaar }).sort({ createdAt: -1 }).limit(20)
+      .select('tokenNo centreId crop quantity status slotDate slotLabel createdAt').lean();
+    res.json({
+      profile: fullProfile(farmer),
+      bookings,
+      // Files are included so the officer can preview/download them.
+      files: (farmer.documents || []).map(d => ({ type: d.type, fileName: d.fileName, mimeType: d.mimeType, data: d.data })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── PATCH /api/admin/farmer-profile/documents — verify / reject a document ─
+router.patch('/farmer-profile/documents', requireAuth, requireRole('officer', 'government'), async (req, res) => {
+  try {
+    const { aadhaar, type, status, reason } = req.body || {};
+    if (!['verified', 'rejected'].includes(status)) return res.status(400).json({ message: 'Status must be verified or rejected.' });
+    if (status === 'rejected' && !String(reason || '').trim()) return res.status(400).json({ message: 'Please give a reason for rejecting.' });
+    const farmer = await User.findOne({ aadhaar, role: 'farmer' });
+    if (!farmer) return res.status(404).json({ message: 'Farmer not found.' });
+    if (!(await officerCanAccess(req.user, aadhaar))) {
+      return res.status(403).json({ message: 'This farmer has not booked at your assigned centres.' });
+    }
+    const doc = (farmer.documents || []).find(d => d.type === type);
+    if (!doc) return res.status(404).json({ message: 'Document not uploaded.' });
+    doc.status = status;
+    doc.rejectReason = status === 'rejected' ? String(reason).slice(0, 120) : '';
+    doc.verifiedBy = req.user.name;
+    doc.verifiedAt = new Date();
+    await farmer.save();
+    await logAction(req.user, status === 'verified' ? 'DOCUMENT_VERIFIED' : 'DOCUMENT_REJECTED', farmer.name, `${type}${status === 'rejected' ? ' — ' + doc.rejectReason : ''}`);
+    res.json({ profile: fullProfile(farmer) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

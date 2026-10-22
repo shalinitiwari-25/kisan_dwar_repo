@@ -45,6 +45,18 @@ function QueueStatus() {
     );
   }
 
+  const mine = bookings.find(b => b._id === lastBooking.id);
+  if (mine && (mine.status === 'cancelled' || mine.status === 'no-show')) {
+    return (
+      <EmptyState
+        title="This booking was cancelled"
+        sub="You are not in a queue right now. See your History, or book a new slot."
+        to="/farmer/history"
+        label="Open History"
+      />
+    );
+  }
+
   const sorted = bookings.slice().sort((a, b) => a.tokenNo - b.tokenNo);
   const waiting = sorted.filter(b => b.status === 'booked' || b.status === 'arrived');
   const myIndex = waiting.findIndex(b => b.tokenNo === lastBooking.tokenNo);

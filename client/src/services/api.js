@@ -80,4 +80,19 @@ export const verifyFarmerKpp = (userId, verified) =>
 // ── Audit / activity log ────────────────────────────────────
 export const getAuditLog = () => API.get('/admin/audit-log');
 
+// ── Farmer profile & documents ─────────────────────────────
+export const getProfile = () => API.get('/auth/profile');
+export const updateProfile = (data) => API.put('/auth/profile', data);
+export const uploadDocument = (payload) => API.post('/auth/profile/documents', payload, { timeout: 30000 });
+export const getMyDocument = (type) => API.get(`/auth/profile/documents/${type}`);
+export const deleteDocument = (type) => API.delete(`/auth/profile/documents/${type}`);
+
+// ── Farmer history & cancellation ──────────────────────────
+export const getFarmerHistory = () => API.get('/booking/my/history');
+export const cancelBooking = (id, reason) => API.patch(`/booking/${id}/cancel`, { reason });
+
+// ── Officer: farmer record + document review ───────────────
+export const getFarmerRecord = (aadhaar) => API.get('/admin/farmer-profile', { params: { aadhaar } });
+export const reviewDocument = (payload) => API.patch('/admin/farmer-profile/documents', payload);
+
 export default API;

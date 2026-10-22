@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAllCentres, getBookingsByCentre, updateBookingStatus } from '../../services/api';
 import { getUser } from '../../utils/auth';
+import FarmerDetailsModal from '../../components/FarmerDetailsModal';
 
 const statusColors = {
   booked:    'badge-gray',
   arrived:   'badge-orange',
   processed: 'badge-green',
   'no-show': 'badge-red',
+  cancelled: 'badge-red',
 };
 
 const statusLabels = {
@@ -14,9 +16,11 @@ const statusLabels = {
   arrived:   '🟡 Arrived',
   processed: '✅ Processed',
   'no-show': '❌ No-Show',
+  cancelled: '🚫 Cancelled',
 };
 
 function QueueManager() {
+  const [detailsFor, setDetailsFor] = useState('');
   const assignedCentres = getUser().assignedCentres || [];
   const [centreId, setCentreId] = useState(
     (assignedCentres.includes(localStorage.getItem('kd_officerCentre')) && localStorage.getItem('kd_officerCentre'))
@@ -150,6 +154,7 @@ function QueueManager() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button className="btn btn-outline btn-sm" onClick={() => setDetailsFor(b.aadhaar)}>🧑‍🌾 Details</button>
                         {b.status === 'booked' && (
                           <button
                             className="btn btn-outline btn-sm"
@@ -193,6 +198,7 @@ function QueueManager() {
       </div>
 
       {loading && <p style={{ fontSize: '13px', color: 'var(--gray-400)', marginTop: '10px' }}>Refreshing…</p>}
+      {detailsFor && <FarmerDetailsModal aadhaar={detailsFor} onClose={() => setDetailsFor('')} />}
     </div>
   );
 }

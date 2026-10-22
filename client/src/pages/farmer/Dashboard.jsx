@@ -41,7 +41,6 @@ function Dashboard() {
   const [queuePosition, setQueuePosition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showProfile, setShowProfile] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [rebookNotice, setRebookNotice] = useState(null);
@@ -58,29 +57,76 @@ function Dashboard() {
     farmerName,
   }) : null;
 
+  // Adopt the replacement booking created when a centre pauses and auto-rebooks.
+  const adoptRebook = (list, current) => {
+    const rebook = list.find(
+      n => n.type === 'REBOOKED' && n.meta?.oldBookingId === current?.id && n.meta?.newBookingId
+    );
+    if (!rebook) return false;
+    const newRecord = {
+      id: rebook.meta.newBookingId,
+      tokenId: rebook.meta.newTokenId,
+      tokenNo: rebook.meta.newTokenNo,
+      centreId: rebook.meta.newCentreId,
+      centre: rebook.meta.newCentreName,
+      crop: current.crop,
+      quantity: current.quantity,
+      aadhaar: current.aadhaar,
+      slot: current.slot,
+    };
+    localStorage.setItem('kd_lastBooking', JSON.stringify(newRecord));
+    setRebookNotice({
+      oldTokenId: rebook.meta.oldTokenId,
+      newTokenId: rebook.meta.newTokenId,
+      newCentreName: rebook.meta.newCentreName,
+    });
+    setLastBooking(newRecord);
+    return true;
+  };
+
+  const clearBooking = () => {
+    localStorage.removeItem('kd_lastBooking');
+    setLastBooking(null);
+    setQueuePosition(null);
+    setCentre(null);
+  };
+
+  // Mandi data is only loaded when the farmer actually has a booking.
   useEffect(() => {
-    const centreId = lastBooking?.centreId || 'C001';
+    if (!lastBooking) { setLoading(false); return undefined; }
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([getCentre(centreId), getBookingsByCentre(centreId)])
-      .then(([centreRes, bookingsRes]) => {
+    Promise.all([getCentre(lastBooking.centreId), getBookingsByCentre(lastBooking.centreId)])
+      .then(async ([centreRes, bookingsRes]) => {
         if (cancelled) return;
-        setCentre(centreRes.data);
-        if (lastBooking) {
-          const waiting = bookingsRes.data
-            .filter(b => b.status === 'booked' || b.status === 'arrived')
-            .sort((a, b) => a.tokenNo - b.tokenNo);
-          const idx = waiting.findIndex(b => b.tokenNo === lastBooking.tokenNo);
-          setQueuePosition(idx >= 0 ? idx + 1 : null);
+        const mine = bookingsRes.data.find(b => b._id === lastBooking.id);
+
+        // Booking was cancelled (by the farmer, or the centre paused): go back to
+        // the "no booking" state, unless it was auto-moved to a new centre.
+        if (mine && (mine.status === 'cancelled' || mine.status === 'no-show')) {
+          let moved = false;
+          try {
+            const n = await getNotifications(user.aadhaar);
+            moved = adoptRebook(n.data, lastBooking);
+          } catch { /* ignore */ }
+          if (!moved && !cancelled) clearBooking();
+          return;
         }
+
+        setCentre(centreRes.data);
+        const waiting = bookingsRes.data
+          .filter(b => b.status === 'booked' || b.status === 'arrived')
+          .sort((a, b) => a.tokenNo - b.tokenNo);
+        const idx = waiting.findIndex(b => b.tokenNo === lastBooking.tokenNo);
+        setQueuePosition(idx >= 0 ? idx + 1 : null);
       })
       .catch(err => !cancelled && setError(err.message))
       .finally(() => !cancelled && setLoading(false));
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastBooking?.centreId]);
+  }, [lastBooking?.id, lastBooking?.centreId]);
 
   // ── Mandi Alerts: poll for new SMS-mirrored notifications, and detect
   //    if this booking got auto-cancelled + moved to a new centre/token ──
@@ -94,33 +140,8 @@ function Dashboard() {
           if (cancelled) return;
           setNotifications(res.data);
 
-          // If our active booking was just cancelled by an officer pausing
-          // the centre, adopt the auto-assigned replacement booking.
-          if (lastBooking?.id) {
-            const rebook = res.data.find(
-              n => n.type === 'REBOOKED' && n.meta?.oldBookingId === lastBooking.id && n.meta?.newBookingId
-            );
-            if (rebook) {
-              const newRecord = {
-                id: rebook.meta.newBookingId,
-                tokenId: rebook.meta.newTokenId,
-                tokenNo: rebook.meta.newTokenNo,
-                centreId: rebook.meta.newCentreId,
-                centre: rebook.meta.newCentreName,
-                crop: lastBooking.crop,
-                quantity: lastBooking.quantity,
-                aadhaar: lastBooking.aadhaar,
-                slot: lastBooking.slot,
-              };
-              localStorage.setItem('kd_lastBooking', JSON.stringify(newRecord));
-              setRebookNotice({
-                oldTokenId: rebook.meta.oldTokenId,
-                newTokenId: rebook.meta.newTokenId,
-                newCentreName: rebook.meta.newCentreName,
-              });
-              setLastBooking(newRecord);
-            }
-          }
+          // If our active booking was auto-moved to a new centre, adopt it.
+          if (lastBooking?.id) adoptRebook(res.data, lastBooking);
         })
         .catch(() => {});
     };
@@ -130,6 +151,9 @@ function Dashboard() {
     return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.aadhaar, lastBooking?.id]);
+
+  // Mandi centre info, yard capacity and Mandi alerts only matter once a booking exists.
+  const hasActiveBooking = !!lastBooking && queuePosition !== null;
 
   const ahead = queuePosition ? queuePosition - 1 : 0;
   const waitMin = ahead * 7;
@@ -161,7 +185,7 @@ function Dashboard() {
           <div>
             <div className="dashboard-hero-title">Namaste, {farmerName}!</div>
             <div className="dashboard-hero-subtitle">
-              {centre ? centre.name : 'Loading…'}
+              {lastBooking ? (centre ? centre.name : lastBooking.centre) : 'Welcome to Kisan Dwar'}
             </div>
           </div>
         </div>
@@ -186,6 +210,16 @@ function Dashboard() {
             </div>
           </div>
           <button className="btn btn-outline btn-sm" onClick={() => setRebookNotice(null)}>OK</button>
+        </div>
+      )}
+
+      {/* Profile reminder — a complete profile is needed to book */}
+      {user.profileComplete === false && (
+        <div className="profile-nudge">
+          <div className="profile-nudge-text" data-speak>
+            <strong>Complete your profile</strong> to book a slot at the Mandi.
+          </div>
+          <Link to="/farmer/profile" className="btn btn-primary btn-sm">Open Profile</Link>
         </div>
       )}
 
@@ -215,7 +249,7 @@ function Dashboard() {
       </div>
 
       {/* Alerts from the Mandi (same messages sent by SMS) — latest 3 only */}
-      {notifications.length > 0 && (
+      {hasActiveBooking && notifications.length > 0 && (
         <div className="card" style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <div className="card-title" style={{ marginBottom: 0 }}>📩 Mandi Alerts</div>
@@ -324,114 +358,69 @@ function Dashboard() {
         </div>
       )}
 
-      {/* ── 5. Everything else, tucked away ──────────────────────── */}
-      <button type="button" className="more-toggle" onClick={() => setShowMore(v => !v)}>
-        {showMore ? '▲ Hide details' : '▼ More details'}
-      </button>
-
-      {showMore && (
-        <div className="more-body">
-          <div className="stat-cards-grid">
-            <StatCard label="Queue Position" value={queuePosition ? `#${queuePosition}` : '—'} sub={queuePosition ? `${ahead} farmers ahead` : 'No booking yet'} icon="🔢" color="green" />
-            <StatCard label="Yard Capacity" value={centre ? `${centre.yardCapacityUsed}%` : '—'} sub={centre?.yardCapacityUsed >= 90 ? 'Nearly full' : 'Filling up'} icon="🏗️" color={centre?.yardCapacityUsed >= 90 ? 'orange' : 'green'} />
-            <StatCard label="Est. Wait Time" value={queuePosition ? `${waitMin} min` : '—'} sub={queuePosition ? `~${(waitMin / 60).toFixed(1)} hours from now` : '—'} icon="⏳" color="gold" />
-            <StatCard label="Booking Status" value={lastBooking ? '✓ Confirmed' : 'None'} sub={lastBooking ? 'Active booking' : 'Book a slot to start'} icon="📋" color={lastBooking ? 'green' : 'gray'} />
-          </div>
-
-          <div className="card">
-            <div className="card-title">🏛️ Mandi Centre Status</div>
-            {centre && (
-              <>
-                <div className="progress-row">
-                  <div className="progress-label">
-                    <span>Yard Capacity</span>
-                    <span style={{ fontWeight: 700, color: 'var(--orange-600)' }}>{centre.yardCapacityUsed}%</span>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div className="progress-bar-fill orange" style={{ width: `${centre.yardCapacityUsed}%` }}></div>
-                  </div>
-                </div>
-                <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <span className={`badge ${centre.trucksLiftingToday ? 'badge-green' : 'badge-red'}`}>
-                    {centre.trucksLiftingToday ? '✓ Trucks Operational' : '✗ Trucks Halted'}
-                  </span>
-                  <span className={`badge ${centre.gunnyBagsAvailable ? 'badge-green' : 'badge-red'}`}>
-                    {centre.gunnyBagsAvailable ? '✓ Bags Available' : '✗ Bags Low'}
-                  </span>
-                  <span className={`badge ${centre.status === 'OPEN' ? 'badge-green' : centre.status === 'RESTRICTED' ? 'badge-orange' : 'badge-red'}`}>
-                    Centre {centre.status}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-
-      {/* ── Kisan Pehchan Patra (Farmer ID Card) ────────────────────────── */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>🪪 Kisan Pehchan Patra</div>
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => setShowProfile(p => !p)}
-          >
-            {showProfile ? '▲ Hide' : '▼ View ID'}
-          </button>
-        </div>
-
-        {showProfile && (
-          <div style={{
-            background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-            border: '2px solid var(--green-300)',
-            borderRadius: '14px',
-            padding: '20px',
-          }}>
-            {/* Header strip */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '2px', color: 'var(--green-700)', textTransform: 'uppercase' }}>
-                  Government of India – Kisan Pehchan Patra
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--green-900)', marginTop: '4px' }}>
-                  {farmerName}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--green-700)', marginTop: '2px' }}>Farmer / किसान</div>
-              </div>
-              <div style={{
-                background: 'var(--green-700)', color: '#fff',
-                borderRadius: '8px', padding: '6px 10px',
-                fontSize: '11px', fontWeight: 700, textAlign: 'center',
-              }}>
-                KP-DEMO<br />2025
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              {[
-                ['Farmer ID', 'KP-2025-HR-00429'],
-                ['Aadhaar', user.aadhaar ? `XXXX XXXX ${user.aadhaar.slice(-4)}` : 'XXXX XXXX XXXX'],
-                ['Phone', user.phone ? `+91-${user.phone.slice(0,4)}XXXXX${user.phone.slice(-1)}` : 'Not set'],
-                ['State', user.state || 'Haryana'],
-                ['Address', user.village && user.district
-                  ? `${user.village}, ${user.district}, Haryana`
-                  : user.address || 'Village Dhanora, Karnal, Haryana'],
-                ['Bank A/C', user.bankAccount || '****4321 (Punjab National Bank)'],
-              ].map(([label, val]) => (
-                <div key={label} style={{ background: 'rgba(255,255,255,0.6)', borderRadius: '8px', padding: '8px 12px' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--green-700)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--green-900)' }}>{val}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--green-700)', borderTop: '1px solid var(--green-200)', paddingTop: '10px' }}>
-              ✅ Verified Farmer · MSP Eligible · Kisan Dwar Portal
-            </div>
-          </div>
-        )}
-      </div>
-
-        </div>
+      {/* ── 5. Mandi details — only while the farmer has an active booking ── */}
+      {!lastBooking && !loading && (
+        <p className="home-note" data-speak>
+          Mandi centre status, yard capacity and alerts will appear here once you book a slot.
+        </p>
       )}
+
+      {hasActiveBooking && (
+        <>
+          <button type="button" className="more-toggle" onClick={() => setShowMore(v => !v)}>
+            {showMore ? '▲ Hide details' : '▼ More details'}
+          </button>
+
+          {showMore && (
+            <div className="more-body">
+              <div className="stat-cards-grid">
+                <StatCard label="Queue Position" value={`#${queuePosition}`} sub={`${ahead} farmers ahead`} icon="🔢" color="green" />
+                <StatCard label="Yard Capacity" value={centre ? `${centre.yardCapacityUsed}%` : '—'} sub={centre?.yardCapacityUsed >= 90 ? 'Nearly full' : 'Filling up'} icon="🏗️" color={centre?.yardCapacityUsed >= 90 ? 'orange' : 'green'} />
+                <StatCard label="Est. Wait Time" value={`${waitMin} min`} sub={`~${(waitMin / 60).toFixed(1)} hours from now`} icon="⏳" color="gold" />
+                <StatCard label="Booking Status" value="✓ Confirmed" sub="Active booking" icon="📋" color="green" />
+              </div>
+
+              <div className="card">
+                <div className="card-title">🏛️ Mandi Centre Status</div>
+                {centre && (
+                  <>
+                    <div className="progress-row">
+                      <div className="progress-label">
+                        <span>Yard Capacity</span>
+                        <span style={{ fontWeight: 700, color: 'var(--orange-600)' }}>{centre.yardCapacityUsed}%</span>
+                      </div>
+                      <div className="progress-bar-track">
+                        <div className="progress-bar-fill orange" style={{ width: `${centre.yardCapacityUsed}%` }}></div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className={`badge ${centre.trucksLiftingToday ? 'badge-green' : 'badge-red'}`}>
+                        {centre.trucksLiftingToday ? '✓ Trucks Operational' : '✗ Trucks Halted'}
+                      </span>
+                      <span className={`badge ${centre.gunnyBagsAvailable ? 'badge-green' : 'badge-red'}`}>
+                        {centre.gunnyBagsAvailable ? '✓ Bags Available' : '✗ Bags Low'}
+                      </span>
+                      <span className={`badge ${centre.status === 'OPEN' ? 'badge-green' : centre.status === 'RESTRICTED' ? 'badge-orange' : 'badge-red'}`}>
+                        Centre {centre.status}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Kisan ID & personal details now live on the Profile page */}
+      <Link to="/farmer/profile" className="profile-link-card">
+        <span className="profile-link-icon">🪪</span>
+        <span>
+          <strong>My Profile &amp; Kisan ID</strong>
+          <span className="profile-link-sub">Your details, documents and Kisan ID card</span>
+        </span>
+        <span className="profile-link-arrow">›</span>
+      </Link>
 
       {loading && <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>Loading live data…</p>}
     </div>

@@ -6,7 +6,8 @@ const tabs = [
   { to: '/farmer',         icon: 'home', label: 'Home',    end: true },
   { to: '/farmer/booking', icon: 'book', label: 'Book' },
   { to: '/farmer/queue',   icon: 'queue', label: 'Queue' },
-  { to: '/farmer/payment', icon: 'wallet', label: 'Payment' },
+  { to: '/farmer/history', icon: 'history', label: 'History' },
+  { to: '/farmer/profile', icon: 'user', label: 'Profile' },
 ];
 
 function BottomNav() {
