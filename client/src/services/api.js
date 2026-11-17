@@ -52,6 +52,9 @@ export const register = (data) => API.post('/auth/register', data);
 // ── Translation (English <-> Hindi) ───────────────────────
 export const translateTexts = (texts, target) => API.post('/translate', { texts, target });
 
+// ── Text-to-speech (Bhashini voices, used when the phone has none) ──
+export const ttsRequest = (texts, target) => API.post('/tts', { texts, target }, { timeout: 25000 });
+
 // ── Notifications (Mandi delay/shortage/rebooking alerts) ─
 export const getNotifications = (aadhaar) => API.get(`/notifications/farmer/${aadhaar}`);
 
@@ -76,5 +79,20 @@ export const verifyFarmerKpp = (userId, verified) =>
 
 // ── Audit / activity log ────────────────────────────────────
 export const getAuditLog = () => API.get('/admin/audit-log');
+
+// ── Farmer profile & documents ─────────────────────────────
+export const getProfile = () => API.get('/auth/profile');
+export const updateProfile = (data) => API.put('/auth/profile', data);
+export const uploadDocument = (payload) => API.post('/auth/profile/documents', payload, { timeout: 30000 });
+export const getMyDocument = (type) => API.get(`/auth/profile/documents/${type}`);
+export const deleteDocument = (type) => API.delete(`/auth/profile/documents/${type}`);
+
+// ── Farmer history & cancellation ──────────────────────────
+export const getFarmerHistory = () => API.get('/booking/my/history');
+export const cancelBooking = (id, reason) => API.patch(`/booking/${id}/cancel`, { reason });
+
+// ── Officer: farmer record + document review ───────────────
+export const getFarmerRecord = (aadhaar) => API.get('/admin/farmer-profile', { params: { aadhaar } });
+export const reviewDocument = (payload) => API.patch('/admin/farmer-profile/documents', payload);
 
 export default API;

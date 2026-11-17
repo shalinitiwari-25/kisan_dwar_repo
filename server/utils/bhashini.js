@@ -128,4 +128,96 @@ async function translate(texts, target) {
   return results;
 }
 
-module.exports = { translate, translateWithBhashini, getBhashiniPipeline, isConfigured };
+// ─────────────────────────────────────────────────────────────
+// Text-to-speech (Bhashini "tts" task) — used by /api/tts so the
+// 🔊 Listen button works even when the phone has no voice installed
+// for a language (Punjabi, Odia, etc).
+// Same two-step flow as translation: look up the model, then call it.
+// ─────────────────────────────────────────────────────────────
+const ttsPipelineCache = new Map(); // lang -> config
+const ttsAudioCache = new Map();    // "<lang>::<text>" -> base64 audio
+const TTS_GENDER = 'female';
+
+async function getTtsPipeline(lang, { fresh = false } = {}) {
+  if (!fresh && ttsPipelineCache.has(lang)) return ttsPipelineCache.get(lang);
+
+  const response = await fetch('https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      userID: process.env.BHASHINI_USER_ID,
+      ulcaApiKey: process.env.BHASHINI_API_KEY,
+    },
+    body: JSON.stringify({
+      pipelineTasks: [
+        { taskType: 'tts', config: { language: { sourceLanguage: lang }, gender: TTS_GENDER } },
+      ],
+      pipelineRequestConfig: { pipelineId: process.env.BHASHINI_PIPELINE_ID || DEFAULT_PIPELINE_ID },
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.message || `Bhashini TTS pipeline lookup failed (${response.status})`);
+  }
+
+  const serviceId = data?.pipelineResponseConfig?.[0]?.config?.[0]?.serviceId;
+  const computeUrl = data?.pipelineInferenceAPIEndPoint?.callbackUrl;
+  const inferenceKey = data?.pipelineInferenceAPIEndPoint?.inferenceApiKey;
+  if (!serviceId || !computeUrl || !inferenceKey?.name || !inferenceKey?.value) {
+    throw new Error(`Bhashini has no text-to-speech model for "${lang}" on this API key`);
+  }
+
+  const config = { computeUrl, headerName: inferenceKey.name, headerValue: inferenceKey.value, serviceId };
+  ttsPipelineCache.set(lang, config);
+  return config;
+}
+
+async function callTts(texts, lang, cfg) {
+  const response = await fetch(cfg.computeUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [cfg.headerName]: cfg.headerValue },
+    body: JSON.stringify({
+      pipelineTasks: [
+        {
+          taskType: 'tts',
+          config: { language: { sourceLanguage: lang }, serviceId: cfg.serviceId, gender: TTS_GENDER, samplingRate: 8000 },
+        },
+      ],
+      inputData: { input: texts.map((source) => ({ source })) },
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const err = new Error(data?.message || `Bhashini TTS request failed (${response.status})`);
+    err.status = response.status;
+    throw err;
+  }
+  const audio = data?.pipelineResponse?.[0]?.audio;
+  if (!Array.isArray(audio) || audio.length === 0) throw new Error('Unexpected response shape from Bhashini TTS');
+  return audio.map((a) => a?.audioContent || '');
+}
+
+// Returns base64 audio strings (usually one per input text, in order).
+async function textToSpeech(texts, lang) {
+  const keys = texts.map((t) => `${lang}::${t}`);
+  if (keys.every((k) => ttsAudioCache.has(k))) return keys.map((k) => ttsAudioCache.get(k));
+
+  let cfg = await getTtsPipeline(lang);
+  let audio;
+  try {
+    audio = await callTts(texts, lang, cfg);
+  } catch (err) {
+    // The inference key can expire — look the model up again once and retry.
+    cfg = await getTtsPipeline(lang, { fresh: true });
+    audio = await callTts(texts, lang, cfg);
+  }
+
+  if (audio.length === texts.length) {
+    texts.forEach((t, i) => { if (audio[i]) ttsAudioCache.set(keys[i], audio[i]); });
+  }
+  return audio;
+}
+
+module.exports = { translate, translateWithBhashini, getBhashiniPipeline, isConfigured, getTtsPipeline, textToSpeech };
+

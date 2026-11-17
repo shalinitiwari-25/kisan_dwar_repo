@@ -15,3 +15,10 @@ export const removeToken = () => {
   localStorage.removeItem('kd_user');
   localStorage.removeItem('kd_lastBooking');
 };
+
+// After login/register: farmers with an incomplete profile are sent to the
+// Profile page first, everyone else to their role's home page.
+export const ROLE_HOME = { farmer: '/farmer', officer: '/officer', government: '/government' };
+export const homeFor = (role) => ROLE_HOME[role] || '/farmer';
+export const postLoginPath = (user) =>
+  user?.role === 'farmer' && user.profileComplete === false ? '/farmer/profile' : homeFor(user?.role);

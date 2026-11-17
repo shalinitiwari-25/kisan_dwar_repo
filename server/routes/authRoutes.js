@@ -3,7 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, requireAuth, requireRole } = require('../middleware/auth');
+const { publicUser, fullProfile, DOC_TYPES } = require('../utils/profile');
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -45,19 +46,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone || '',
-        aadhaar: user.aadhaar || '',
-        village: user.village || '',
-        district: user.district || '',
-        state: user.state || '',
-        preferredLanguage: user.preferredLanguage || 'en',
-        assignedCentres: user.assignedCentres || [],
-        kppVerified: user.kppVerified || false,
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -124,19 +113,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        aadhaar: user.aadhaar,
-        village: user.village,
-        district: user.district,
-        state: user.state,
-        preferredLanguage: user.preferredLanguage || 'en',
-        assignedCentres: user.assignedCentres || [],
-        kppVerified: user.kppVerified || false,
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -168,5 +145,103 @@ router.patch('/language/:aadhaar', async (req, res) => {
   }
 });
 
-module.exports = router;
+// ───────────────────────── Farmer profile ─────────────────────────────
+const TEXT_LIMITS = {
+  fatherName: 80, dob: 10, gender: 12, address: 200, village: 60, tehsil: 60,
+  district: 60, state: 60, pincode: 6, landAcres: 10, khasraNo: 40,
+  kisanId: 30, bankName: 80, bankAccount: 30, ifsc: 11,
+};
+const EDITABLE = ['name', ...Object.keys(TEXT_LIMITS)];
+const clean = (v, max) => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, max);
+const MAX_DOC_BYTES = 1.4 * 1024 * 1024; // ~1 MB file once base64-encoded
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'application/pdf'];
 
+// GET /api/auth/profile — the logged-in farmer's own profile
+router.get('/profile', requireAuth, requireRole('farmer'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(fullProfile(user));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// PUT /api/auth/profile — edit own details. Phone & Aadhaar are the farmer's
+// login/booking identity so they are NOT editable here; role/status/password
+// can never be changed from this route.
+router.put('/profile', requireAuth, requireRole('farmer'), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const update = {};
+    for (const key of EDITABLE) {
+      if (body[key] !== undefined) update[key] = clean(body[key], key === 'name' ? 80 : TEXT_LIMITS[key]);
+    }
+    if (body.crops !== undefined) {
+      update.crops = (Array.isArray(body.crops) ? body.crops : []).map(c => clean(c, 30)).filter(Boolean).slice(0, 10);
+    }
+
+    if (update.name !== undefined && !update.name) return res.status(400).json({ message: 'Name cannot be empty.' });
+    if (update.kisanId) update.kisanId = update.kisanId.toUpperCase();
+    if (update.ifsc) update.ifsc = update.ifsc.toUpperCase();
+    if (update.pincode && !/^\d{6}$/.test(update.pincode)) return res.status(400).json({ message: 'PIN code must be 6 digits.' });
+    if (update.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(update.ifsc)) return res.status(400).json({ message: 'IFSC code looks wrong (example: SBIN0001234).' });
+    if (update.bankAccount && !/^[0-9Xx* ()A-Za-z-]{4,30}$/.test(update.bankAccount)) return res.status(400).json({ message: 'Bank account number looks wrong.' });
+    if (update.landAcres && !/^\d{0,5}(\.\d{1,2})?$/.test(update.landAcres)) return res.status(400).json({ message: 'Land area must be a number, e.g. 2.5' });
+    if (update.dob && !/^\d{4}-\d{2}-\d{2}$/.test(update.dob)) return res.status(400).json({ message: 'Date of birth is not valid.' });
+    if (update.kisanId && !/^[A-Z0-9-]{5,30}$/.test(update.kisanId)) return res.status(400).json({ message: 'Kisan ID should be letters/numbers only (5-30 characters).' });
+
+    update.profileUpdatedAt = new Date();
+    const user = await User.findByIdAndUpdate(req.user.id, { $set: update }, { new: true });
+    res.json(fullProfile(user));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// POST /api/auth/profile/documents — body { type, fileName, mimeType, data(dataURL) }
+router.post('/profile/documents', requireAuth, requireRole('farmer'), async (req, res) => {
+  try {
+    const { type, fileName, mimeType, data } = req.body || {};
+    if (!DOC_TYPES.some(d => d.type === type)) return res.status(400).json({ message: 'Unknown document type.' });
+    if (!ALLOWED_MIME.includes(mimeType)) return res.status(400).json({ message: 'Only JPG, PNG or PDF files are allowed.' });
+    if (typeof data !== 'string' || !data.startsWith(`data:${mimeType};base64,`)) return res.status(400).json({ message: 'File could not be read. Please try again.' });
+    if (data.length > MAX_DOC_BYTES) return res.status(413).json({ message: 'File is too big. Please keep it under 1 MB.' });
+
+    const user = await User.findById(req.user.id);
+    user.documents = (user.documents || []).filter(d => d.type !== type);
+    user.documents.push({ type, fileName: clean(fileName, 80), mimeType, data, status: 'uploaded', uploadedAt: new Date() });
+    user.profileUpdatedAt = new Date();
+    await user.save();
+    res.status(201).json(fullProfile(user));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET /api/auth/profile/documents/:type — the farmer previews their own file
+router.get('/profile/documents/:type', requireAuth, requireRole('farmer'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('documents');
+    const doc = (user.documents || []).find(d => d.type === req.params.type);
+    if (!doc) return res.status(404).json({ message: 'Document not found.' });
+    res.json({ type: doc.type, fileName: doc.fileName, mimeType: doc.mimeType, data: doc.data });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// DELETE /api/auth/profile/documents/:type — remove (not allowed once verified)
+router.delete('/profile/documents/:type', requireAuth, requireRole('farmer'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const doc = (user.documents || []).find(d => d.type === req.params.type);
+    if (doc && doc.status === 'verified') return res.status(400).json({ message: 'A verified document cannot be removed. Contact your Mandi officer.' });
+    user.documents = (user.documents || []).filter(d => d.type !== req.params.type);
+    await user.save();
+    res.json(fullProfile(user));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+module.exports = router;

@@ -1,10 +1,15 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 
 import Navbar  from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
+import ListenButton from './components/ListenButton';
+import LanguageWelcome from './components/LanguageWelcome';
 import ProtectedRoute from './components/ProtectedRoute';
 import FarmerChatbot from './components/FarmerChatbot';
+import { ChatbotProvider } from './context/ChatbotContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { getRole } from './utils/auth';
@@ -14,6 +19,8 @@ import FarmerDashboard from './pages/farmer/Dashboard';
 import Booking         from './pages/farmer/Booking';
 import QueueStatus     from './pages/farmer/QueueStatus';
 import PaymentStatus   from './pages/farmer/PaymentStatus';
+import History         from './pages/farmer/History';
+import Profile         from './pages/farmer/Profile';
 
 // Officer
 import OfficerDashboard from './pages/officer/OfficerDashboard';
@@ -38,14 +45,18 @@ function AppShell() {
   const location = useLocation();
   const isFarmer = location.pathname.startsWith('/farmer');
 
+  // Mobile only: the sidebar becomes a slide-in drawer opened from the ☰ button.
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [location.pathname]);
+
   return (
-    <>
-      <Navbar />
+    <ChatbotProvider>
+      <Navbar onMenuClick={() => setNavOpen(o => !o)} />
 
       <div className="app-layout">
-        <Sidebar />
+        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
 
-        <main className="main-content">
+        <main className={`main-content${isFarmer ? ' has-bottom-nav' : ''}`}>
           <Routes>
             {/* Farmer */}
             <Route path="/farmer" element={
@@ -59,6 +70,13 @@ function AppShell() {
             } />
             <Route path="/farmer/payment" element={
               <ProtectedRoute allowedRole="farmer"><PaymentStatus /></ProtectedRoute>
+            } />
+
+            <Route path="/farmer/history" element={
+              <ProtectedRoute allowedRole="farmer"><History /></ProtectedRoute>
+            } />
+            <Route path="/farmer/profile" element={
+              <ProtectedRoute allowedRole="farmer"><Profile /></ProtectedRoute>
             } />
 
             {/* Officer */}
@@ -95,15 +113,18 @@ function AppShell() {
         </main>
       </div>
 
-      {/* KisanBot — floating chatbot, farmer pages only */}
+      {/* Farmer pages only: bottom tab bar (phones) + KisanBot floating chatbot */}
+      {isFarmer && <BottomNav />}
+      {isFarmer && <ListenButton />}
       {isFarmer && <FarmerChatbot />}
-    </>
+    </ChatbotProvider>
   );
 }
 
 function App() {
   return (
     <BrowserRouter>
+      <LanguageWelcome />
       <Routes>
         <Route path="/login"    element={<Login />} />
         <Route path="/register" element={<Register />} />

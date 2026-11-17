@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { searchFarmers, verifyFarmerKpp } from '../../services/api';
+import FarmerDetailsModal from '../../components/FarmerDetailsModal';
 
 function FarmerRegistry() {
+  const [detailsFor, setDetailsFor] = useState('');
   const [query, setQuery] = useState('');
   const [farmers, setFarmers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,13 +84,13 @@ function FarmerRegistry() {
           <div className="table-wrapper">
             <table>
               <thead>
-                <tr><th>Name</th><th>Aadhaar</th><th>Village / District</th><th>KPP Status</th><th>Action</th></tr>
+                <tr><th>Name</th><th>Aadhaar / Kisan ID</th><th>Village / District</th><th>KPP Status</th><th>Action</th></tr>
               </thead>
               <tbody>
                 {farmers.map(f => (
                   <tr key={f._id}>
                     <td style={{ fontWeight: 600 }}>{f.name}<br /><span style={{ fontSize: '11px', color: 'var(--gray-400)', fontWeight: 400 }}>+91 {f.phone}</span></td>
-                    <td style={{ fontFamily: 'Outfit, sans-serif' }}>{f.aadhaar}</td>
+                    <td style={{ fontFamily: 'Outfit, sans-serif' }}>{f.aadhaar}{f.kisanId && <><br /><span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{f.kisanId}</span></>}</td>
                     <td>{f.village || '—'}{f.district ? `, ${f.district}` : ''}</td>
                     <td>
                       <span className={`badge ${f.kppVerified ? 'badge-green' : 'badge-orange'}`}>
@@ -98,7 +100,8 @@ function FarmerRegistry() {
                         <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '3px' }}>by {f.kppVerifiedBy}</div>
                       )}
                     </td>
-                    <td>
+                    <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button className="btn btn-outline btn-sm" onClick={() => setDetailsFor(f.aadhaar)}>🧑‍🌾 Details</button>
                       <button
                         className={`btn btn-sm ${f.kppVerified ? 'btn-outline' : 'btn-primary'}`}
                         disabled={actingId === f._id}
@@ -114,6 +117,7 @@ function FarmerRegistry() {
           </div>
         )}
       </div>
+      {detailsFor && <FarmerDetailsModal aadhaar={detailsFor} onClose={() => setDetailsFor('')} />}
     </div>
   );
 }

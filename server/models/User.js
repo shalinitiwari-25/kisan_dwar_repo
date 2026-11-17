@@ -50,6 +50,37 @@ const userSchema = new mongoose.Schema({
   approvedAt: { type: Date, default: null },
   rejectionReason: { type: String, default: '' },
 
+  // ── Farmer profile (filled in by the farmer on the Profile page) ────
+  kisanId: { type: String, default: '' },          // Kisan Pehchan Patra number
+  fatherName: { type: String, default: '' },
+  dob: { type: String, default: '' },              // YYYY-MM-DD
+  gender: { type: String, default: '' },
+  tehsil: { type: String, default: '' },
+  pincode: { type: String, default: '' },
+  landAcres: { type: String, default: '' },
+  khasraNo: { type: String, default: '' },
+  crops: { type: [String], default: [] },
+  bankName: { type: String, default: '' },
+  ifsc: { type: String, default: '' },
+  profileUpdatedAt: { type: Date, default: null },
+  // Documents needed to book at a Mandi. `data` holds a small data-URL
+  // (images are compressed in the browser; size is capped server-side).
+  documents: {
+    type: [{
+      type: { type: String, required: true },       // aadhaar | kisanId | landRecord | bankPassbook | photo
+      fileName: { type: String, default: '' },
+      mimeType: { type: String, default: '' },
+      data: { type: String, default: '' },
+      status: { type: String, enum: ['uploaded', 'verified', 'rejected'], default: 'uploaded' },
+      rejectReason: { type: String, default: '' },
+      uploadedAt: { type: Date, default: Date.now },
+      verifiedBy: { type: String, default: '' },
+      verifiedAt: { type: Date, default: null },
+      _id: false,
+    }],
+    default: [],
+  },
+
   // ── Kisan Pehchan Patra (Farmer ID) verification ──────────────────
   // Whether an officer/government user has checked and confirmed this
   // farmer's KPP, via the Farmer Registry.
